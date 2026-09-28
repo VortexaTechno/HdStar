@@ -12,7 +12,7 @@ import '../Room_Viewmodel/Room_Viewmodel.dart';
 
 class AgoraViewmodel extends ChangeNotifier {
   /// App ID on the Agora dashboard
-  String APP_ID = 'a8200d4d7e4a4dd589fd7e1c1e9fe0fc';
+  String APP_ID = '2d1320fdea0940e58ff09f630e47d9a8';
 
   bool muted = true;
   bool KickedFromChair = false;

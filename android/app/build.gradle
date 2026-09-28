@@ -13,7 +13,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.HD.live"
+    namespace "com.veyro.app"
     compileSdk 36
     ndkVersion "28.2.13676358"
 
@@ -39,7 +39,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.HD.live"
+        applicationId "com.veyro.app"
 
         minSdkVersion flutter.minSdkVersion
         targetSdk 36

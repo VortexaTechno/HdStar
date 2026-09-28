@@ -103,6 +103,7 @@ dependencies:
   wp_pivot_flutter: ^1.0.0
   motion_toast:
   flutter_svga: ^0.0.13
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -111,13 +112,21 @@ dev_dependencies:
   flutter_localizations:
     sdk: flutter
 
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/image/icon.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/image/icon_foreground.png"
+  remove_alpha_ios: true
+
 flutter_native_splash:
-  image: assets/image/Logo.png
-  background_image: "assets/image/openapp.png"
-  android12: true
+  color: "#000000"
+  image: assets/image/splash_logo.png
   android_12:
-    image: assets/image/Logo.png
-    background_image: "assets/image/openapp.png"
+    color: "#000000"
+    image: assets/image/splash_logo.png
 
 flutter:
   uses-material-design: true

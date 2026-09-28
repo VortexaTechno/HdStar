@@ -1,4 +1,4 @@
-package com.HD.live
+package com.veyro.app
 
 import io.flutter.embedding.android.FlutterActivity
 

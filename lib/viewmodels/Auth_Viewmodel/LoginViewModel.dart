@@ -18,6 +18,7 @@ import 'package:ahlachat/view/Screans/SearchScrean/widgets/SearchPeople.dart';
 import 'package:ahlachat/viewmodels/InboxRooms_Viewmodel/InboxRoomsViewmodel.dart';
 import 'package:ahlachat/viewmodels/Moment_Viewmodel/Moment_ViewModel.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:dio/dio.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -862,23 +863,35 @@ print(userinfo?.MessageNumber);
     showloading8 = true;
     notifyListeners();
   }
-  userlogin({ context}) async {
-
-    if( Code=='+20'&& LoginPhonenumber.text.startsWith('0')){
-      LoginPhonenumber.text=  LoginPhonenumber.text.substring(1);
+  userlogin({context}) async {
+    if (Code == '+20' && LoginPhonenumber.text.startsWith('0')) {
+      LoginPhonenumber.text = LoginPhonenumber.text.substring(1);
     }
 
     ShowGlopalLoading();
-    await userapi()
-        .UserLogin(Phonenumber:  Code+LoginPhonenumber.text, context: context)
-        .then((value) {
-
-      if(value.id!=null){
-
+    try {
+      final value = await userapi().UserLogin(
+        Phonenumber: Code + LoginPhonenumber.text,
+        context: context,
+      );
+      if (value.id != null) {
         userinfo = value;
-
       }
-    });
+    } on DioException catch (e) {
+      print('URL: ${e.requestOptions.uri}');
+      print('Data sent: ${e.requestOptions.data}');
+      print('Response: ${e.response?.data}');
+      if (e.response?.statusCode == 404) {
+        print('URL: ${e.requestOptions.uri}');
+        print('Data sent: ${e.requestOptions.data}');
+        print('Response: ${e.response?.data}');
+      }
+      print('Status: ${e.response?.statusCode}');
+      print('Body: ${e.response?.data}');
+      print('URL: ${e.requestOptions.uri}');
+    } finally {
+      DismissGlopalLoading(); // اقفل اللودينج (اسم الدالة حسب اللي عندك)
+    }
     notifyListeners();
   }
   SendCodeRlogin({context,phonenumber})async{
@@ -1353,6 +1366,10 @@ Future<String?>  getId() async {
 
       await userapi().getAllconstant(context).then((value)async {
 
+        if (value == null) {
+          print('❌ GetConstData returned null');
+          return;
+        }
 if(value['banstatus']==0){
 
   List list =value['Banner'];

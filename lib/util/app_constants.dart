@@ -50,9 +50,9 @@ List <String> insult=[
 
 
 class AppConstants {
-  static const String APP_NAME = 'HD Star';
+  static const String APP_NAME = 'Veyro';
   static const String FirstMessage = 'Hi';
-  static const String BASE_URL = 'https://princessofsing.site/';
+  static const String BASE_URL = 'https://egyptiantechs.com/';
   static const String Image_URL ="https://princessofsing.site/images/";
   static const String Socket_port = 'princessofsing.site';
   static const String Splash_Screan = '/';

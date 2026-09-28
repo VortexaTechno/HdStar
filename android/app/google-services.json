@@ -1,36 +1,26 @@
 {
   "project_info": {
-    "project_number": "1083806000067",
-    "project_id": "hd-chat-2ee24",
-    "storage_bucket": "hd-chat-2ee24.appspot.com"
+    "project_number": "873748841955",
+    "project_id": "hdstar-49728",
+    "storage_bucket": "hdstar-49728.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1083806000067:android:642b3e6c663c08ea145376",
+        "mobilesdk_app_id": "1:873748841955:android:4d66b50ad0dfb86a04ccd6",
         "android_client_info": {
-          "package_name": "com.HD.live"
+          "package_name": "com.veyro.app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "1083806000067-vll2td5prmivnmdesjr6k8453uvgtqf4.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB_R4TROpqJE755swbDjwWcOYmcvJ8Az3Q"
+          "current_key": "AIzaSyCAh7PWcYnSisfOliunMi0_M4nec73t8Zc"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1083806000067-vll2td5prmivnmdesjr6k8453uvgtqf4.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

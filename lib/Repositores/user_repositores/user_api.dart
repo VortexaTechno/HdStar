@@ -713,46 +713,51 @@ int target=0;
     return check;
   }
   Future<usermodel> UserLogin({Phonenumber, context}) async {
-
-
     try {
       FormData formData = FormData.fromMap({
         "phone_number": Phonenumber.toString(),
       });
 
-      Response response2 = await dio.post(
-        'api/login',
-        data: formData,
-      );
+      print('LOGIN URL: ${dio.options.baseUrl}api/login');
+      print('LOGIN PHONE: $Phonenumber');
+
+      Response response2 = await dio.post('api/login', data: formData);
 
       if (response2.statusCode == 200) {
-if(response2.data['users']!="E05"){
-  UserId=response2.data['users']['id'].toString();
-  if(response2.data['users']['ban']==1||response2.data['users']['ban']=='1'){
-    DismissGlopalLoading();
-    Dialogs().showtoast('تم حظر هذا الحساب');
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.clear();
-    navigateTo(context: context, screen: LoginScrean());
-  }else{
-    Provider.of<LoginViewmodel>(context,listen: false).SendCodeRlogin(context: context,phonenumber: Phonenumber);
-
-  }
-
-}else{
-
-  Provider.of<LoginViewmodel>(context,listen: false).SendCodeSignUp(context: context,phonenumber: Phonenumber);
-
-
-}
-       } else {
-
+        if (response2.data['users'] != "E05") {
+          UserId = response2.data['users']['id'].toString();
+          if (response2.data['users']['ban'] == 1 ||
+              response2.data['users']['ban'] == '1') {
+            DismissGlopalLoading();
+            Dialogs().showtoast('تم حظر هذا الحساب');
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            prefs.clear();
+            navigateTo(context: context, screen: LoginScrean());
+          } else {
+            Provider.of<LoginViewmodel>(context, listen: false)
+                .SendCodeRlogin(context: context, phonenumber: Phonenumber);
+          }
+        } else {
+          Provider.of<LoginViewmodel>(context, listen: false)
+              .SendCodeSignUp(context: context, phonenumber: Phonenumber);
+        }
       }
+    } on DioException catch (e) {
+      print('STATUS: ${e.response?.statusCode}');
+      print('URL: ${e.requestOptions.uri}');
+      print('RESPONSE: ${e.response?.data}');
 
+      if (e.response?.statusCode == 404) {
+        // الرقم مش مسجّل -> ابعت كود التسجيل
+        Provider.of<LoginViewmodel>(context, listen: false)
+            .SendCodeSignUp(context: context, phonenumber: Phonenumber);
+      } else {
+        DismissGlopalLoading();
+        Dialogs().showtoast('حدث خطأ، حاول مرة أخرى');
+      }
     } catch (e) {
       print(e);
       DismissGlopalLoading();
-
     }
 
     return userinfo;
@@ -1693,13 +1698,22 @@ if(userinfo.music!=null&&userinfo.music!=''&&Gmail==null){
     try {
       var avatars = await dio.get('api/GetConstData');
 
+      print('✅ URL: ${avatars.requestOptions.uri}');
+      print('✅ STATUS: ${avatars.statusCode}');
+      print('✅ DATA: ${avatars.data}');
+
       return avatars.data;
     } catch (exception) {
-      print('asdasdasdasdasd');
-      print(exception);
+      print('❌ getAllconstant error: $exception');
+
+      if (exception is DioException) {
+        print('❌ URL: ${exception.requestOptions.uri}');
+        print('❌ STATUS: ${exception.response?.statusCode}');
+        print('❌ RESPONSE: ${exception.response?.data}');
+      }
+
+      return null;
     }
-
-
   }
   Future getReportImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
