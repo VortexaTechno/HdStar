@@ -586,11 +586,21 @@ MyUSERINFO(usermodel U){
     notifyListeners();
   }
 
-  SignInwithGoogle(context) async {
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
+  Future<void> signInWithGoogle() async {
+    try {
+      await _googleSignIn.initialize();
 
-   await userapi().Googlesignin(context: context);
-    notifyListeners();
+      final GoogleSignInAccount account =
+      await _googleSignIn.authenticate();
+
+      print('Google User: ${account.email}');
+      print('Name: ${account.displayName}');
+      print('ID: ${account.id}');
+    } catch (e) {
+      print('Google Sign In Error: $e');
+    }
   }
   SearchGetusers({context,text}) async {
 
@@ -870,11 +880,19 @@ print(userinfo?.MessageNumber);
 
     ShowGlopalLoading();
     try {
+
       final value = await userapi().UserLogin(
         Phonenumber: Code + LoginPhonenumber.text,
         context: context,
       );
+
+      print('✅ Login API Success');
+      print('Response: ${value.toJson()}');
+
       if (value.id != null) {
+        print('✅ Login Success');
+        print('User ID: ${value.id}');
+
         userinfo = value;
       }
     } on DioException catch (e) {
@@ -886,9 +904,6 @@ print(userinfo?.MessageNumber);
         print('Data sent: ${e.requestOptions.data}');
         print('Response: ${e.response?.data}');
       }
-      print('Status: ${e.response?.statusCode}');
-      print('Body: ${e.response?.data}');
-      print('URL: ${e.requestOptions.uri}');
     } finally {
       DismissGlopalLoading(); // اقفل اللودينج (اسم الدالة حسب اللي عندك)
     }

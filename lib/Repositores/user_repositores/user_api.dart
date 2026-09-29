@@ -724,6 +724,7 @@ int target=0;
       Response response2 = await dio.post('api/login', data: formData);
 
       if (response2.statusCode == 200) {
+        userinfo = usermodel.fromJson(response2.data['users']);
         if (response2.data['users'] != "E05") {
           UserId = response2.data['users']['id'].toString();
           if (response2.data['users']['ban'] == 1 ||
@@ -813,55 +814,145 @@ int target=0;
   }
 
 
-  Future<usermodel> UserLoginID({ID,Password, context}) async {
+  Future<usermodel> UserLoginID({
+    required dynamic ID,
+    required dynamic Password,
+    required BuildContext context,
+  }) async {
     try {
-      FormData formData =   FormData.fromMap({
+      FormData formData = FormData.fromMap({
         "id": ID.toString(),
-        "password":Password.toString()
+        "password": Password.toString(),
       });
-
+      print('Id: ${ID.toString()}');
+      print('Password: ${Password.toString()}');
       Response response2 = await dio.post(
         'api/loginID',
         data: formData,
       );
 
+      // Print status code
+      print('================ LOGIN RESPONSE ================');
+      print('Id: ${ID.toString()}');
+      print('Password: ${Password.toString()}');
+      print('Status Code: ${response2.statusCode}');
+      print('Response Data: ${response2.data}');
+      print('=================================================');
 
       if (response2.statusCode == 200) {
-        if(response2.data['users']!="E05"){
+        final users = response2.data['users'];
 
-          UserId=response2.data['users']['id'].toString();
-
-          if(response2.data['users']['ban']==1||response2.data['users']['ban']=='1'){
-            DismissGlopalLoading();
-            Dialogs().showtoast('تم حظر هذا الحساب');
-            SharedPreferences prefs = await SharedPreferences.getInstance();
-            prefs.clear();
-
-          }else{
-
-            Provider.of<LoginViewmodel>(context,listen: false).UserLoginVerify(context: context,Parimater: ID.toString());
-
-          }
-        }else if(response2.data['users']=='E06'){
-          Dialogs().showtoast('لم يتم التسجيل بهذه البيانات');
-          navigateTo(context: context, screen: CompleteSignUpID());
-
-        }else if(response2.data['users']=='E05'){
+        // ================= E05 =================
+        if (users == 'E05') {
           DismissGlopalLoading();
+
+          print('❌ Login Error: E05');
+          print('Response: ${response2.data}');
+
           Dialogs().showtoast('الرقم السري خاطئ');
         }
-      } else {
-        DismissGlopalLoading();
-        Dialogs().showtoast('الرقم السري خاطئ');
 
+        // ================= E06 =================
+        else if (users == 'E06') {
+          DismissGlopalLoading();
 
+          print('❌ Login Error: E06');
+          print('Response: ${response2.data}');
 
+          Dialogs().showtoast('لم يتم التسجيل بهذه البيانات');
+
+          navigateTo(
+            context: context,
+            screen: CompleteSignUpID(),
+          );
+        }
+
+        // ================= SUCCESS =================
+        else if (users is Map) {
+          print('✅ LOGIN SUCCESS');
+          print('Response: ${response2.data}');
+          print('User Data: $users');
+
+          UserId = users['id'].toString();
+
+          print('User ID: $UserId');
+          print('Ban: ${users['ban']}');
+
+          if (users['ban'] == 1 || users['ban'] == '1') {
+            DismissGlopalLoading();
+
+            print('🚫 User is Banned');
+
+            Dialogs().showtoast('تم حظر هذا الحساب');
+
+            SharedPreferences prefs =
+            await SharedPreferences.getInstance();
+
+            await prefs.clear();
+          } else {
+            print('✅ User is not banned');
+            print('Calling UserLoginVerify...');
+
+            Provider.of<LoginViewmodel>(
+              context,
+              listen: false,
+            ).UserLoginVerify(
+              context: context,
+              Parimater: ID.toString(),
+            );
+          }
+        }
+
+        // ================= UNKNOWN RESPONSE =================
+        else {
+          DismissGlopalLoading();
+
+          print('⚠️ UNKNOWN RESPONSE');
+          print('Response: ${response2.data}');
+
+          Dialogs().showtoast('حدث خطأ غير متوقع');
+        }
       }
 
-    } catch (e) {
+      // ================= HTTP ERROR =================
+      else {
+        DismissGlopalLoading();
+
+        print('❌ HTTP ERROR');
+        print('Status Code: ${response2.statusCode}');
+        print('Response: ${response2.data}');
+
+        Dialogs().showtoast(
+          'حدث خطأ: ${response2.statusCode}',
+        );
+      }
+    }
+
+    // ================= EXCEPTION =================
+    catch (e) {
       DismissGlopalLoading();
-      Dialogs().showtoast('لم يتم التسجيل بهذه البيانات');
-      navigateTo(context: context, screen: CompleteSignUpID());
+
+      print('================ LOGIN EXCEPTION ================');
+      print('Error: $e');
+
+      if (e is DioException) {
+        print('Dio Error Type: ${e.type}');
+        print('Dio Error Message: ${e.message}');
+        print('Dio Error Response: ${e.response?.data}');
+        print('Dio Status Code: ${e.response?.statusCode}');
+        print('Dio Request: ${e.requestOptions.uri}');
+      }
+
+      print('==================================================');
+
+      Dialogs().showtoast(
+        'لم يتم التسجيل بهذه البيانات',
+      );
+
+      navigateTo(
+        context: context,
+        screen: CompleteSignUpID(),
+      );
     }
 
     return userinfo;
@@ -980,21 +1071,104 @@ int target=0;
 
   }
 
-  EnterCodelogin({context,code,Phonenumber})async{
-    LoginViewmodel user = Provider.of<LoginViewmodel>(context, listen: false);
+  Future<void> EnterCodelogin({
+    required BuildContext context,
+    required String code,
+    required String Phonenumber,
+  }) async {
+    final user = Provider.of<LoginViewmodel>(
+      context,
+      listen: false,
+    );
 
-    AuthCredential credential = await PhoneAuthProvider.credential(verificationId:verificationid??'', smsCode:code);
-    _firebaseAuth.signInWithCredential(credential).then(( result){
-       Provider.of<LoginViewmodel>(context,listen: false).UserLoginVerify(context: context,Parimater: Phonenumber);
-       user.updatesendcodestate(value: 0);
-   print('Goooooooooooooooooooooooooooooooooo');
-    }).catchError((e){
+    try {
+      // 1. Create Firebase credential
+      final AuthCredential credential =
+      PhoneAuthProvider.credential(
+        verificationId: verificationid ?? '',
+        smsCode: code,
+      );
+
+      print('========== FIREBASE OTP ==========');
+      print('Verification ID: ${verificationid ?? 'NULL'}');
+      print('SMS Code: $code');
+      print('==================================');
+
+      // 2. Sign in with Firebase
+      final UserCredential result =
+      await _firebaseAuth.signInWithCredential(credential);
+
+      print('========== FIREBASE LOGIN SUCCESS ==========');
+      print('Firebase UID: ${result.user?.uid}');
+      print('Firebase Phone: ${result.user?.phoneNumber}');
+      print('Firebase Email: ${result.user?.email}');
+      print('============================================');
+
+      // 3. Update state
+      user.updatesendcodestate(value: 0);
+
+      // 4. Call backend login verification
+      print('========== CALLING BACKEND ==========');
+
+      await user.UserLoginVerify(
+        context: context,
+        Parimater: Phonenumber,
+      );
+
+      print('========== BACKEND VERIFY FINISHED ==========');
+      print('Goooooooooooooooooooooooooooooooooo');
+    } on FirebaseAuthException catch (e) {
+      // Firebase errors
       user.updatesendcodestate(value: 1);
-      //user.updatesendcodestate(value: 1);
-      Dialogs().showtoast(getLang( context: context, key: "rowng_code"));
-      print(e);
-        print('Noooooooooooooooooooooooooooooooooo');
-    });
+
+      print('========== FIREBASE AUTH ERROR ==========');
+      print('Code: ${e.code}');
+      print('Message: ${e.message}');
+      print('========================================');
+
+      Dialogs().showtoast(
+        getLang(
+          context: context,
+          key: "rowng_code",
+        ),
+      );
+    } on DioException catch (e) {
+      // Dio errors
+      user.updatesendcodestate(value: 1);
+
+      print('========== DIO ERROR ==========');
+      print('Status Code: ${e.response?.statusCode}');
+      print('Response Data: ${e.response?.data}');
+      print('Response Headers: ${e.response?.headers}');
+      print('Request URL: ${e.requestOptions.uri}');
+      print('Request Method: ${e.requestOptions.method}');
+      print('Request Data: ${e.requestOptions.data}');
+      print('Request Headers: ${e.requestOptions.headers}');
+      print('Error Message: ${e.message}');
+      print('================================');
+
+      Dialogs().showtoast(
+        getLang(
+          context: context,
+          key: "rowng_code",
+        ),
+      );
+    } catch (e, stackTrace) {
+      // Any other error
+      user.updatesendcodestate(value: 1);
+
+      print('========== UNKNOWN ERROR ==========');
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
+      print('===================================');
+
+      Dialogs().showtoast(
+        getLang(
+          context: context,
+          key: "rowng_code",
+        ),
+      );
+    }
   }
 
   EnterCodeSignUp({context,code})async{

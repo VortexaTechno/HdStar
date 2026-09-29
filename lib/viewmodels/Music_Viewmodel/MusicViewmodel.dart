@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ahlachat/main.dart';
 import 'package:ahlachat/util/Dialogs.dart';
 import 'package:ahlachat/util/Localization.dart';
@@ -16,230 +18,657 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Repositores/Music_repositores/Musicapi.dart';
 import '../Auth_Viewmodel/LoginViewModel.dart';
-class DurationState{
-  DurationState({this.position = Duration.zero, this.total = Duration.zero});
-  Duration position, total;
+
+class DurationState {
+  DurationState({
+    this.position = Duration.zero,
+    this.total = Duration.zero,
+  });
+
+  Duration position;
+  Duration total;
 }
-class MusicViewModel extends ChangeNotifier{
-  final OnAudioQuery  audioQuery = OnAudioQuery();
-  final AudioPlayer  player = AudioPlayer();
-  bool  playerorno = false;
+
+class MusicViewModel extends ChangeNotifier {
+  // ============================================================
+  // AUDIO
+  // ============================================================
+
+  final OnAudioQuery audioQuery = OnAudioQuery();
+  final AudioPlayer player = AudioPlayer();
+
+  bool playerorno = false;
+
   List<SongModel> songs = [];
-  List<SongModel> SongsList=[];
+  List<SongModel> SongsList = [];
 
-  List<SongModel>   searchResult=[];
-  List<SongModel>   SelectedMusic=[];
-  SelectMusic(SongModel val)async{
+  List<SongModel> searchResult = [];
+  List<SongModel> SelectedMusic = [];
 
-    SongsList.add(val);
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>?    Songs=  prefs.getStringList('Songs');
-    if(Songs!=null){
-      Songs.add(val.displayName);
-      prefs.setStringList('Songs',Songs);
-    }else{
-      prefs.setStringList('Songs',[val.displayName]);
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<int?>? _currentIndexSubscription;
+
+  bool _isInitializingSongs = false;
+
+  // ============================================================
+  // SELECT MUSIC
+  // ============================================================
+
+  Future<void> SelectMusic(SongModel val) async {
+    if (!SongsList.contains(val)) {
+      SongsList.add(val);
     }
 
-    notifyListeners();
-  }
-  UnSelectMusic(SongModel val)async{
+    final SharedPreferences prefs =
+    await SharedPreferences.getInstance();
 
-    SongsList.remove(val);
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>?    Songs=  prefs.getStringList('Songs');
-    if(Songs!=null){
-      Songs.remove(val.displayName);
-      prefs.setStringList('Songs',Songs);
-    }
-    notifyListeners();
-  }
-bool loading=false;
-  AddNewMusic({context}) async {
+    final List<String>? savedSongs =
+    prefs.getStringList('Songs');
 
-    LoginViewmodel user=  Provider.of<LoginViewmodel>(context,listen: false);
-    loading=true;
-    notifyListeners();
-    await Musicapi().AddMusic(context: context,Music: SelectedMusic.first).then((value) {
-      loading=false;
-if(value.name!=null){
-  Dialogs().showtoast(getLang(context:NavigationService.navigatorKey.currentContext,key: "Done_Succ"));
-  SelectedMusic.clear();
-
-
-}
-      notifyListeners();
-    });
-    notifyListeners();
-  }
-  SelectMusicFile(value)async{
-    SelectedMusic.clear();
-    SelectedMusic.add(value);
-
-    notifyListeners();
-  }
-  addsongs(){
-    searchResult=SelectedMusic;
-    notifyListeners();
-  }
-  TextEditingController NameController=TextEditingController();
-
-  void  Filtercity(String enteredKeyword) {
-
-    print(enteredKeyword);
-    if (enteredKeyword.isEmpty) {
-
-        searchResult = SelectedMusic;
-
-      notifyListeners();
-    } else {
-
-       searchResult = SelectedMusic.where((user) => user.title.toLowerCase().contains(enteredKeyword.toLowerCase())).toList();
-      notifyListeners(); //
-    }
-  }
-  int index=0;
-  String currentSongTitle = '';
-  int currentIndex = 0;
-  var songslost;
-
-void pause(){
-  player.stop();
-  playerorno=false;
-  notifyListeners(); //
-
-}
-  void play(url){
-    AgoraViewmodel Agora=Provider.of<AgoraViewmodel>(roomcontext,listen: false);
-    MusicViewModel music= Provider.of<MusicViewModel>(roomcontext,listen: false);
-    player.pause();
-    player.setFilePath(url);
-  player.setVolume(0);
-    player.play();
-
-    player.playerStateStream.listen((event) async{
-
-      if(event.processingState==ProcessingState.completed){
-
-        if(Agora.Rebeate==false){
-
-
-          await Agora.StartAudioMexing(filePath:  SongsList[Agora.index].data,duration: SongsList[Agora.index].duration!,tittle:  SongsList[Agora.index].displayName,indexsong: Agora.index);
-          notifyListeners(); //
-        }else{
-
-          await Agora.StartAudioMexing(filePath:  SongsList[Agora.index+1].data,duration: SongsList[Agora.index+1].duration!,tittle:  SongsList[Agora.index+1].displayName,indexsong: Agora.index+1);
-          notifyListeners(); //
-         }
-
+    if (savedSongs != null) {
+      if (!savedSongs.contains(val.displayName)) {
+        savedSongs.add(val.displayName);
       }
-    });
 
-    notifyListeners(); //
+      await prefs.setStringList('Songs', savedSongs);
+    } else {
+      await prefs.setStringList(
+        'Songs',
+        [val.displayName],
+      );
+    }
 
-  }
-
-var Crunnetdata;
-  setindex({value,data}){
-    Crunnetdata=data;
-    index=value;
     notifyListeners();
   }
-   GetAllMusic(){
-      var songslost= audioQuery.querySongs(
-        orderType: OrderType.ASC_OR_SMALLER,
-        uriType: UriType.EXTERNAL,
-        ignoreCase: true,sortType: SongSortType.TITLE
+
+  Future<void> UnSelectMusic(SongModel val) async {
+    SongsList.remove(val);
+
+    final SharedPreferences prefs =
+    await SharedPreferences.getInstance();
+
+    final List<String>? savedSongs =
+    prefs.getStringList('Songs');
+
+    if (savedSongs != null) {
+      savedSongs.remove(val.displayName);
+
+      await prefs.setStringList(
+        'Songs',
+        savedSongs,
+      );
+    }
+
+    notifyListeners();
+  }
+
+  // ============================================================
+  // ADD MUSIC
+  // ============================================================
+
+  bool loading = false;
+
+  Future<void> AddNewMusic({
+    BuildContext? context,
+  }) async {
+    if (context == null) {
+      print('❌ AddNewMusic: context is null');
+      return;
+    }
+
+    if (SelectedMusic.isEmpty) {
+      print('❌ AddNewMusic: SelectedMusic is empty');
+      return;
+    }
+
+    final LoginViewmodel user =
+    Provider.of<LoginViewmodel>(
+      context,
+      listen: false,
     );
 
-    //return songslost;
-  }
+    loading = true;
+    notifyListeners();
 
+    try {
+      final value = await Musicapi().AddMusic(
+        context: context,
+        Music: SelectedMusic.first,
+      );
 
+      loading = false;
 
-  Stream<DurationState> get  durationStateStream =>
-      Rx.combineLatest2<Duration, Duration?, DurationState>(
-          player.positionStream,  player.durationStream, (position, duration) => DurationState(
-          position: position, total: duration?? Duration.zero
-      ));
-  void seekToSec(int sec) {
-    Duration newPos = Duration(seconds: sec);
-    player.seek(newPos);
-  }
-  Initsong()async{
+      if (value.name != null) {
+        Dialogs().showtoast(
+          getLang(
+            context: NavigationService
+                .navigatorKey
+                .currentContext,
+            key: "Done_Succ",
+          ),
+        );
 
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-  //prefs.remove('Songs');
-    List<String>? Songs=await prefs.getStringList('Songs');
-    // Songs?.add('1');
-    // prefs.setStringList('Songs',Songs!);
-    // List<String>? Songsss=await prefs.getStringList('Songs');
-   print(Songs);
-    print("SongsSongsSongsSongsSongsSongsSongsSongsSongsSongs");
-    player.currentIndexStream.listen((index) {
-      if(index != null){
-        _updateCurrentPlayingSongDetails(index);
+        SelectedMusic.clear();
       }
-    });
-    GetAllMusic().then((value) {
-      SelectedMusic = value;
+    } catch (e, stackTrace) {
+      loading = false;
 
-if(Songs!=null){
-  SelectedMusic.forEach((element){
-    if(Songs.contains(element.displayName)){
-      SongsList.add(element);
+      print('❌ AddNewMusic Error: $e');
+      print(stackTrace);
     }
 
-  });
-}
-
-
-     // SelectedMusic.removeWhere((element) => element.data.contains('AUD'));
-
-      notifyListeners(); //
-    });
-    notifyListeners(); //
-
+    notifyListeners();
   }
 
+  // ============================================================
+  // SELECT MUSIC FILE
+  // ============================================================
 
-  void toast(BuildContext context, String text){
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(text),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0)),
-    ));
+  void SelectMusicFile(dynamic value) {
+    SelectedMusic.clear();
+
+    if (value != null) {
+      SelectedMusic.add(value);
+    }
+
+    notifyListeners();
   }
 
-  void requestStoragePermission() async {
+  // ============================================================
+  // ADD SONGS
+  // ============================================================
 
-    if(!kIsWeb){
-      bool permissionStatus = await  audioQuery.permissionsStatus();
-      if(!permissionStatus){
-        await  audioQuery.permissionsRequest();
+  void addsongs() {
+    searchResult = List<SongModel>.from(SelectedMusic);
+
+    notifyListeners();
+  }
+
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
+  TextEditingController NameController =
+  TextEditingController();
+
+  void Filtercity(String enteredKeyword) {
+    print(enteredKeyword);
+
+    if (enteredKeyword.isEmpty) {
+      searchResult =
+      List<SongModel>.from(SelectedMusic);
+
+      notifyListeners();
+      return;
+    }
+
+    searchResult = SelectedMusic.where(
+          (user) => user.title
+          .toLowerCase()
+          .contains(
+        enteredKeyword.toLowerCase(),
+      ),
+    ).toList();
+
+    notifyListeners();
+  }
+
+  // ============================================================
+  // CURRENT SONG
+  // ============================================================
+
+  int index = 0;
+
+  String currentSongTitle = '';
+
+  int currentIndex = 0;
+
+  var songslost;
+
+  var Crunnetdata;
+
+  // ============================================================
+  // PAUSE
+  // ============================================================
+
+  Future<void> pause() async {
+    try {
+      await player.stop();
+
+      playerorno = false;
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ Pause Error: $e');
+    }
+  }
+
+  // ============================================================
+  // PLAY
+  // ============================================================
+
+  Future<void> play(dynamic url) async {
+    try {
+      if (url == null || url.toString().isEmpty) {
+        print('❌ Play: URL is empty');
+        return;
       }
 
+      final AgoraViewmodel agora =
+      Provider.of<AgoraViewmodel>(
+        roomcontext,
+        listen: false,
+      );
 
+      print('🎵 Playing: $url');
+
+      // Stop previous listener
+      await _playerStateSubscription?.cancel();
+
+      // Pause current audio
+      await player.pause();
+
+      // Set audio
+      await player.setFilePath(
+        url.toString(),
+      );
+
+      // Keep original behavior
+      await player.setVolume(0);
+
+      // Start audio
+      await player.play();
+
+      playerorno = true;
+
+      // Only one listener
+      _playerStateSubscription =
+          player.playerStateStream.listen(
+                (event) async {
+              try {
+                if (event.processingState ==
+                    ProcessingState.completed) {
+                  print('🎵 Song completed');
+
+                  if (SongsList.isEmpty) {
+                    print(
+                      '❌ SongsList is empty',
+                    );
+                    return;
+                  }
+
+                  if (agora.Rebeate == false) {
+                    final currentAgoraIndex =
+                        agora.index;
+
+                    if (currentAgoraIndex < 0 ||
+                        currentAgoraIndex >=
+                            SongsList.length) {
+                      print(
+                        '❌ Invalid Agora index: '
+                            '$currentAgoraIndex',
+                      );
+                      return;
+                    }
+
+                    final song =
+                    SongsList[currentAgoraIndex];
+
+                    await agora.StartAudioMexing(
+                      filePath: song.data,
+                      duration: song.duration!,
+                      tittle: song.displayName,
+                      indexsong: currentAgoraIndex,
+                    );
+
+                    notifyListeners();
+                  } else {
+                    final nextIndex =
+                        agora.index + 1;
+
+                    if (nextIndex < 0 ||
+                        nextIndex >=
+                            SongsList.length) {
+                      print(
+                        '🎵 No next song. '
+                            'Reached end of playlist.',
+                      );
+                      return;
+                    }
+
+                    final song =
+                    SongsList[nextIndex];
+
+                    await agora.StartAudioMexing(
+                      filePath: song.data,
+                      duration: song.duration!,
+                      tittle: song.displayName,
+                      indexsong: nextIndex,
+                    );
+
+                    notifyListeners();
+                  }
+                }
+              } catch (e, stackTrace) {
+                print(
+                  '❌ Player Listener Error: $e',
+                );
+                print(stackTrace);
+              }
+            },
+          );
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('❌ Play Error: $e');
+      print(stackTrace);
+
+      playerorno = false;
+
+      notifyListeners();
     }
-    notifyListeners(); //
-
   }
 
-  //create playlist
-  ConcatenatingAudioSource createPlaylist(List<SongModel> songs) {
-    List<AudioSource> sources = [];
-    for (var song in songs){
-      sources.add(AudioSource.uri(Uri.parse(song.uri!)));
-    }
-    return ConcatenatingAudioSource(children: sources);
+  // ============================================================
+  // SET INDEX
+  // ============================================================
+
+  void setindex({
+    required dynamic value,
+    required dynamic data,
+  }) {
+    Crunnetdata = data;
+    index = value;
+
+    notifyListeners();
   }
-  // bg color
-  //Color bgColor = const Color(0XFF2A2A2A); //Colors.black;
+
+  // ============================================================
+  // GET ALL MUSIC
+  // ============================================================
+
+  Future<List<SongModel>> GetAllMusic() async {
+    try {
+      if (kIsWeb) {
+        print(
+          '🌐 GetAllMusic: Web platform',
+        );
+
+        return [];
+      }
+
+      // Check permission
+      bool permissionStatus =
+      await audioQuery.permissionsStatus();
+
+      print(
+        '🎵 Current Audio Permission: '
+            '$permissionStatus',
+      );
+
+      // Request permission if needed
+      if (!permissionStatus) {
+        print(
+          '🎵 Requesting Audio Permission...',
+        );
+
+        final bool requested =
+        await audioQuery.permissionsRequest();
+
+        print(
+          '🎵 Permission Request Result: '
+              '$requested',
+        );
+
+        if (!requested) {
+          print(
+            '❌ Audio permission denied',
+          );
+
+          return [];
+        }
+
+        permissionStatus = true;
+      }
+
+      if (!permissionStatus) {
+        print(
+          '❌ No audio permission',
+        );
+
+        return [];
+      }
+
+      // Query songs only after permission
+      final List<SongModel> songList =
+      await audioQuery.querySongs(
+        orderType: OrderType.ASC_OR_SMALLER,
+        uriType: UriType.EXTERNAL,
+        ignoreCase: true,
+        sortType: SongSortType.TITLE,
+      );
+
+      print(
+        '✅ Songs Loaded: ${songList.length}',
+      );
+
+      return songList;
+    } catch (e, stackTrace) {
+      print(
+        '❌ GetAllMusic Error: $e',
+      );
+
+      print(stackTrace);
+
+      return [];
+    }
+  }
+
+  // ============================================================
+  // INITIALIZE SONGS
+  // ============================================================
+
+  Future<void> Initsong() async {
+    // Prevent multiple calls at the same time
+    if (_isInitializingSongs) {
+      print(
+        '⚠️ Initsong already running',
+      );
+
+      return;
+    }
+
+    _isInitializingSongs = true;
+
+    try {
+      final SharedPreferences prefs =
+      await SharedPreferences.getInstance();
+
+      final List<String>? savedSongs =
+      prefs.getStringList('Songs');
+
+      print(
+        'Saved Songs: $savedSongs',
+      );
+
+      print(
+        'SongsSongsSongsSongsSongsSongsSongsSongsSongsSongs',
+      );
+
+      // Cancel previous current index listener
+      await _currentIndexSubscription?.cancel();
+
+      // Listen only once
+      _currentIndexSubscription =
+          player.currentIndexStream.listen(
+                (index) {
+              if (index != null &&
+                  index >= 0 &&
+                  index < SongsList.length) {
+                _updateCurrentPlayingSongDetails(
+                  index,
+                );
+              }
+            },
+          );
+
+      // Get all device music
+      final List<SongModel> musicList =
+      await GetAllMusic();
+
+      SelectedMusic =
+      List<SongModel>.from(musicList);
+
+      print(
+        'SelectedMusic count: '
+            '${SelectedMusic.length}',
+      );
+
+      // Restore selected songs
+      SongsList.clear();
+
+      if (savedSongs != null &&
+          savedSongs.isNotEmpty) {
+        for (final element in SelectedMusic) {
+          if (savedSongs.contains(
+            element.displayName,
+          )) {
+            SongsList.add(element);
+          }
+        }
+      }
+
+      print(
+        'SongsList count: '
+            '${SongsList.length}',
+      );
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print(
+        '❌ Initsong Error: $e',
+      );
+
+      print(stackTrace);
+
+      SelectedMusic.clear();
+      SongsList.clear();
+
+      notifyListeners();
+    } finally {
+      _isInitializingSongs = false;
+    }
+  }
+
+  // ============================================================
+  // TOAST
+  // ============================================================
+
+  void toast(
+      BuildContext context,
+      String text,
+      ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+          BorderRadius.circular(50.0),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // REQUEST STORAGE PERMISSION
+  // ============================================================
+
+  Future<void> requestStoragePermission() async {
+    try {
+      if (kIsWeb) {
+        return;
+      }
+
+      bool permissionStatus =
+      await audioQuery.permissionsStatus();
+
+      print(
+        '🎵 Current Permission: '
+            '$permissionStatus',
+      );
+
+      if (!permissionStatus) {
+        permissionStatus =
+        await audioQuery.permissionsRequest();
+
+        print(
+          '🎵 Permission Result: '
+              '$permissionStatus',
+        );
+      }
+
+      if (!permissionStatus) {
+        print(
+          '❌ User denied music permission',
+        );
+      } else {
+        print(
+          '✅ Music permission granted',
+        );
+      }
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print(
+        '❌ Permission Error: $e',
+      );
+
+      print(stackTrace);
+    }
+  }
+
+  // ============================================================
+  // CREATE PLAYLIST
+  // ============================================================
+
+  ConcatenatingAudioSource createPlaylist(
+      List<SongModel> songs,
+      ) {
+    final List<AudioSource> sources = [];
+
+    for (final song in songs) {
+      if (song.uri != null &&
+          song.uri!.isNotEmpty) {
+        sources.add(
+          AudioSource.uri(
+            Uri.parse(song.uri!),
+          ),
+        );
+      }
+    }
+
+    return ConcatenatingAudioSource(
+      children: sources,
+    );
+  }
+
+  // ============================================================
+  // BACKGROUND COLOR
+  // ============================================================
+
   Color bgColor = Colors.brown;
 
-  //define on audio plugin
+  // ============================================================
+  // DECORATION
+  // ============================================================
 
-  BoxDecoration getDecoration(BoxShape shape, Offset offset, double blurRadius, double spreadRadius) {
+  BoxDecoration getDecoration(
+      BoxShape shape,
+      Offset offset,
+      double blurRadius,
+      double spreadRadius,
+      ) {
     return BoxDecoration(
       color: bgColor,
       shape: shape,
@@ -255,12 +684,17 @@ if(Songs!=null){
           color: Colors.black,
           blurRadius: blurRadius,
           spreadRadius: spreadRadius,
-        )
+        ),
       ],
     );
   }
 
-  BoxDecoration getRectDecoration(BorderRadius borderRadius, Offset offset, double blurRadius, double spreadRadius) {
+  BoxDecoration getRectDecoration(
+      BorderRadius borderRadius,
+      Offset offset,
+      double blurRadius,
+      double spreadRadius,
+      ) {
     return BoxDecoration(
       borderRadius: borderRadius,
       color: bgColor,
@@ -276,21 +710,96 @@ if(Songs!=null){
           color: Colors.black,
           blurRadius: blurRadius,
           spreadRadius: spreadRadius,
-        )
+        ),
       ],
     );
   }
 
-  //update playing song details
-  void _updateCurrentPlayingSongDetails(int index) {
+  // ============================================================
+  // UPDATE CURRENT PLAYING SONG
+  // ============================================================
 
-      if(SongsList.isNotEmpty){
-        currentSongTitle = SongsList[index].displayName;
-        currentIndex = index;
-      }
-      notifyListeners(); //
+  void _updateCurrentPlayingSongDetails(
+      int index,
+      ) {
+    if (SongsList.isEmpty) {
+      return;
+    }
 
+    if (index < 0 ||
+        index >= SongsList.length) {
+      print(
+        '❌ Invalid song index: $index',
+      );
+
+      return;
+    }
+
+    currentSongTitle =
+        SongsList[index].displayName;
+
+    currentIndex = index;
+
+    notifyListeners();
   }
 
+  // ============================================================
+  // DURATION STREAM
+  // ============================================================
 
+  Stream<DurationState>
+  get durationStateStream =>
+      Rx.combineLatest2<
+          Duration,
+          Duration?,
+          DurationState>(
+        player.positionStream,
+        player.durationStream,
+            (
+            position,
+            duration,
+            ) =>
+            DurationState(
+              position: position,
+              total:
+              duration ?? Duration.zero,
+            ),
+      );
+
+  // ============================================================
+  // SEEK
+  // ============================================================
+
+  Future<void> seekToSec(int sec) async {
+    final Duration newPos =
+    Duration(seconds: sec);
+
+    try {
+      await player.seek(newPos);
+    } catch (e) {
+      print(
+        '❌ Seek Error: $e',
+      );
+    }
+  }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
+
+  @override
+  void dispose() {
+    print(
+      '🗑️ MusicViewModel dispose',
+    );
+
+    _playerStateSubscription?.cancel();
+    _currentIndexSubscription?.cancel();
+
+    NameController.dispose();
+
+    player.dispose();
+
+    super.dispose();
+  }
 }

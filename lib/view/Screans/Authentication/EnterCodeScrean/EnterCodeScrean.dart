@@ -96,7 +96,7 @@ class _EnterCodeScreanState extends State<EnterCodeScrean>  with SingleTickerPro
                             if(currentText.length<6){
                               Dialogs().showtoast(getLang(context: context, key: "Correct_Verification"));
                             }else{
-                              Provider.of<LoginViewmodel>(context,listen: false).EnterCodelogin(context: context,code:currentText );}
+                              Provider.of<LoginViewmodel>(context,listen: false).EnterCodelogin(context: context,code:currentText ,Phonenumber: widget.PhoneNumber);}
                           }
                         } ,
                         child: Center(child: Container(

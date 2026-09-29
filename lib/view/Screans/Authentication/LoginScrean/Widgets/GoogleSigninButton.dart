@@ -17,7 +17,7 @@ class GoogleSignin extends StatelessWidget {
     return     InkWell(onTap:(){
 
 
-        user.SignInwithGoogle(context);
+        user.signInWithGoogle();
 
 
 
