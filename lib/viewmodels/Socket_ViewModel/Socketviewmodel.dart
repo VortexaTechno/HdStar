@@ -126,9 +126,11 @@ class SocketViewmodel extends ChangeNotifier{
           Provider.of<RoomViewmodel>(roomcontext, listen: false).AddChatRoom(message: CHATROOM);
           break;
       case 5:
-
+        print('🎁 GIFT EVENT DATA: ${data['data']}');
         var  Give = givegifts.fromJson(data['data']['gift']);
           var user=usermodel.fromJson(data['data']['user']);
+        print('🎁 GIFT PARSED OK | price: ${Give.price} | qty: ${Give.quantity} | users: ${Give.ListUser}');
+
         Give.ListUser.forEach((elements) {
          List ?SSS= Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.joinRooms?.where((element) => element.userId.toString()==elements.toString()).toList();
         if(SSS?.length!=0 ){

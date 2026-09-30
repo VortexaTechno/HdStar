@@ -1751,6 +1751,24 @@ KickJoinadminuser({context,room_id,user_id})async{
     }
     return update;
   }
+  // ============ Helper: يطبع URL + FIELDS + STATUS + BODY + ERROR ============
+  Future<Response> _post(String tag, String path, FormData formData) async {
+    print('🎁 [$tag] URL   : ${dio.options.baseUrl}$path');
+    print('🎁 [$tag] FIELDS: ${formData.fields}');
+    try {
+      final res = await dio.post(path, data: formData);
+      print('🎁 [$tag] STATUS: ${res.statusCode}');
+      print('🎁 [$tag] BODY  : ${res.data}');
+      return res;
+    } on DioError catch (e) {
+      print('🎁 [$tag] ❌ DIO ERROR TYPE: ${e.type}');
+      print('🎁 [$tag] ❌ STATUS : ${e.response?.statusCode}');
+      print('🎁 [$tag] ❌ BODY   : ${e.response?.data}');
+      print('🎁 [$tag] ❌ MESSAGE: ${e.message}');
+      rethrow;
+    }
+  }
+
   Future<bool> SendGift({ context,Roomid,Listuser,giftid,quantity,Cost}) async {
     LoginViewmodel user = Provider.of<LoginViewmodel>(context, listen: false);
     var send=true;
@@ -1765,23 +1783,22 @@ KickJoinadminuser({context,room_id,user_id})async{
 
       });
 
-      Response response2 = await dio.post(
-        'api/sentGift',
-        data: formData,
-      );
-
+      Response response2 = await _post('SendGift', 'api/sentGift', formData);
 
       if (response2.statusCode == 200) {
         user.Updatecoins(coins: int.parse(response2.data['user']['coins'].toString()));
         send=true;
-         
+        print('🎁 ✅ SEND GIFT SUCCESS');
       }else{
         send=false;
+        print('🎁 ⚠️ SEND GIFT FAILED: ${response2.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
+      print('🎁 ❌ SEND GIFT ERROR: $e');
+      print(s);
       if (e is DioError) {
-        print(e.response?.data['errNum']);
-        Dialogs().ShowErrorRegesterToast(e.response?.data['errNum'],context);
+        print(e.response?.data['msg']);
+        Dialogs().ShowErrorRegesterToast(e.response?.data['msg'],context);
       } else {
         print(e);
       }
@@ -1789,6 +1806,7 @@ KickJoinadminuser({context,room_id,user_id})async{
 
     return send;
   }
+
   Future<String> SentLuckyGift({ context,Roomid,Listuser,giftid,quantity,Cost}) async {
     LoginViewmodel user = Provider.of<LoginViewmodel>(context, listen: false);
     String prsantage='';
@@ -1803,10 +1821,7 @@ KickJoinadminuser({context,room_id,user_id})async{
 
       });
 
-      Response response2 = await dio.post(
-        'api/SentLuckyGift',
-        data: formData,
-      );
+      Response response2 = await _post('LuckyGift', 'api/SentLuckyGift', formData);
 
       if (response2.statusCode == 200) {
         print('=====================ReturnMyCOINS========>${response2.data['gain']['coins'].toString()}==================>');
@@ -1823,15 +1838,20 @@ KickJoinadminuser({context,room_id,user_id})async{
         print(response2.data['gain']);
       }else{
         prsantage='';
+        print('🎁 ⚠️ LUCKY GIFT FAILED: ${response2.statusCode}');
       }
-    } catch (e) {
-      print(e);
+    } catch (e, s) {
+      print('🎁 ❌ LUCKY GIFT ERROR: $e');
+      print(s);
       prsantage='';
-
+      if (e is DioError) {
+        print(e.response?.data['errNum']);
+      }
     }
 
     return prsantage;
   }
+
   Future<String> SentCompoGift({ context,Roomid,Listuser,giftid,quantity,Cost}) async {
     LoginViewmodel user = Provider.of<LoginViewmodel>(context, listen: false);
     String prsantage='';
@@ -1846,19 +1866,16 @@ KickJoinadminuser({context,room_id,user_id})async{
 
       });
 
-      Response response2 = await dio.post(
-        'api/SentCompo',
-        data: formData,
-      );
+      Response response2 = await _post('ComboGift', 'api/SentCompo', formData);
 
       if (response2.statusCode == 200) {
         print('=====================ReturnMyCOINS========>${response2.data['gain']['coins'].toString()}==================>');
         print('=====================ReturnWin========>${response2.data['gain']['ReturnedValue']['win'].toString()}==================>');
         print('=====================Persantagec========>${response2.data['gain']['ReturnedValue']['Persantage'].toString()}==================>');
-       if(response2.data['gain']['ReturnedValue']['Persantage']!=0&&response2.data['gain']['ReturnedValue']['Persantage']!='0'){
-         Provider.of<RoomViewmodel>(roomcontext,listen: false). addComboWin( amount:response2.data['gain']['ReturnedValue']['win'],persantage: response2.data['gain']['ReturnedValue']['Persantage']);
+        if(response2.data['gain']['ReturnedValue']['Persantage']!=0&&response2.data['gain']['ReturnedValue']['Persantage']!='0'){
+          Provider.of<RoomViewmodel>(roomcontext,listen: false). addComboWin( amount:response2.data['gain']['ReturnedValue']['win'],persantage: response2.data['gain']['ReturnedValue']['Persantage']);
 
-       }
+        }
 
 
 
@@ -1867,8 +1884,11 @@ KickJoinadminuser({context,room_id,user_id})async{
         print(response2.data['gain']);
       }else{
         prsantage='';
+        print('🎁 ⚠️ COMBO GIFT FAILED: ${response2.statusCode}');
       }
-    } catch (e) {
+    } catch (e, s) {
+      print('🎁 ❌ COMBO GIFT ERROR: $e');
+      print(s);
       prsantage='';
       if (e is DioError) {
         print(e.response?.data['errNum']);
@@ -1891,21 +1911,19 @@ KickJoinadminuser({context,room_id,user_id})async{
         "user_id":UserId.toString(),
       });
 
-      Response response2 = await dio.post(
-        'api/Sendemoji',
-        data: formData,
-      );
+      Response response2 = await _post('Emoji', 'api/Sendemoji', formData);
 
       if (response2.statusCode == 200) {
 
         send=true;
-         
+
       }else{
 
         send=false;
       }
-    } catch (e) {
-      print(e);
+    } catch (e, s) {
+      print('🎁 ❌ EMOJI ERROR: $e');
+      print(s);
 
       if (e is DioError) {
         print(e.response?.data['errNum']);

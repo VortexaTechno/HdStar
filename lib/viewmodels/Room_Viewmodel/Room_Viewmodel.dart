@@ -1796,13 +1796,14 @@ Future<bool> EnterTrackRoomPassword({id, pass}) async {
    Currentroom?.userNumber=(Currentroom?.userNumber??0)+1;
 
    JoinChairs=true;
-   Provider.of<SocketViewmodel>(context,listen: false).ConnectRoomScocket(context,value.id);
    Provider.of<RoomPlayViewModel>(context, listen: false).changeHasRoomstate(true);
 
    Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,channelName: value.agoratoken.toString(),Token:value.Token! );
+   Provider.of<SocketViewmodel>(context,listen: false).ConnectRoomScocket(context,value.id);
    Provider.of<RoomPlayViewModel>(context, listen: false).changeIsRoomstate(true);
 
    Provider.of<GiftsViewModel>(context, listen: false).DeleteGlopal();
+
 
    DismissGlopalLoading();
 
