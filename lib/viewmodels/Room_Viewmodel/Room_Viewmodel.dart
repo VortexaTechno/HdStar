@@ -622,22 +622,25 @@ GetCollectKarisma({context,userid,required chairid})async{
     MentionName=name;
   }
 
-  Future getChatRoomImage() async {
-    bool selected=false;
-    final pickedFile = await _picker2.pickImage(source: ImageSource.gallery);
-    if (pickedFile!= null) {
+Future getChatRoomImage() async {
+  bool selected = false;
+  try {
+    final pickedFile = await _picker2.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 70,
+    );
+    if (pickedFile != null) {
       ChatRoomImage = File(pickedFile.path);
-
-      selected=true;
-
-      notifyListeners();
-    } else {
-      selected=false;
-
+      selected = true;
     }
-    notifyListeners();
-    return selected;
+  } catch (e) {
+    debugPrint('getChatRoomImage error: $e');
   }
+  notifyListeners();
+  return selected;
+}
   ClearMentionid(){
     Mentionid=null;    MentionName=null;
   }
@@ -1132,7 +1135,7 @@ if(element.userId.toString()==elements.toString()){
 }
       });
       print(Currentroom?.chairs?.where((element) => element.userId.toString()==element.toString()));
-       
+
       notifyListeners();
     });
 
@@ -1396,37 +1399,79 @@ checkadmin2({context}){
   }
 
 
-  Future getImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile!= null) {
-        Roomimage = File(pickedFile.path);
-    } else {
-
+Future getImage() async {
+  try {
+    final pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 70,
+    );
+    if (pickedFile != null) {
+      Roomimage = File(pickedFile.path);
     }
-    notifyListeners();
+  } catch (e) {
+    debugPrint('getImage error: $e');
   }
-  Future getImage2() async {
-    final pickedFile = await _picker2.pickImage(source: ImageSource.gallery);
-    if (pickedFile!= null){
+  notifyListeners();
+}
+
+Future getImage2() async {
+  try {
+    final pickedFile = await _picker2.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 70,
+    );
+    if (pickedFile != null) {
       Roomimage2 = File(pickedFile.path);
-    } else {
-
     }
-    notifyListeners();
+  } catch (e) {
+    debugPrint('getImage2 error: $e');
   }
-  Future getImage3( ) async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile!= null) {
-      Roomimage3 = File(pickedFile.path);
-      if(Roomimage3!=null){
-        Navigator.push(roomcontext, MaterialPageRoute(builder: (context) => ImageFileView(Files:Roomimage3 ),));
-       // AddackImage.
+  notifyListeners();
+}
+
+// الـ context اختياري عشان أي استدعاء قديم لـ getImage3() يفضل شغال
+  Future getImage3([BuildContext? ctx]) async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1080,
+        maxHeight: 1920,
+        imageQuality: 80,
+      );
+      if (pickedFile != null) {
+        Roomimage3 = File(pickedFile.path);
+        final navContext = ctx ?? roomcontext;
+        if (navContext.mounted) {
+          Navigator.push(
+            navContext,
+            MaterialPageRoute(
+                builder: (context) => ImageFileView(Files: Roomimage3)),
+          );
+        }
       }
-    } else {
-
+    } catch (e) {
+      debugPrint('getImage3 error: $e');
     }
     notifyListeners();
   }
+  Future<void> retrieveLostData() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final LostDataResponse response = await _picker.retrieveLostData();
+      if (response.isEmpty) return;
+      if (response.file != null) {
+        Roomimage = File(response.file!.path);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('retrieveLostData error: $e');
+    }
+  }
+
   ClearImage(){
   Roomimage=null;
   notifyListeners();
@@ -1554,7 +1599,7 @@ GetReciverLeaderboard({context}) async {
   GetMoreNewRoom(context) async {
     showSpinner2();
     await Roomapi().GetMoreTrendRoom(context).then((value) {
-       
+
       value.forEach((element) {
         NewRooms.add(element);
       });
@@ -1607,7 +1652,7 @@ showSpinner46();
   GetMoreRoom(context) async {
     showSpinner2();
     await Roomapi().AddmoreRooms(context).then((value) {
-       
+
       value.forEach((element) {
         Rooms.add(element);
       });
@@ -1740,7 +1785,7 @@ Future<bool> EnterTrackRoomPassword({id, pass}) async {
     Provider.of<AgoraViewmodel>(context,listen: false).disableAudioroomvoice();
 
     await Roomapi().CreateRoom(RoomAds: RoomAds.text,context: context,name: name,Category:Category,image: Roomimage,backgroundimage: backgroundimage,city: city ).then((value) {
-  
+
  if(value.id!=null){
    clearadd();
    Currentroom=value;
@@ -2016,7 +2061,7 @@ Future<bool> EnterTrackRoomPassword({id, pass}) async {
 await Roomapi().joinChair(context: context,index: index,room_id: Currentroom?.id,chair_id:chairid ).then((value) {
   hideLoding();
   print('Join Chairsssssssssssssssssss');
-   
+
   if(value==true){
     Agora.updateKickedFromChair(value: false);
    Chairid=chairid;
@@ -2215,7 +2260,7 @@ await Roomapi().joinChair(context: context,index: index,room_id: Currentroom?.id
   Leaveroom({context}) async {
 
     LeaveLoading=true;
-     
+
     Provider.of<SocketViewmodel>(context,listen: false).DisConnect(id: Currentroom?.id.toString());
     Provider.of<AgoraViewmodel>(context,listen: false).disableAudioroomvoice();
     Provider.of<AgoraViewmodel>(context,listen: false).stopAudioMexing(context);
@@ -2335,7 +2380,7 @@ LeaveLoading=false;
 
 
   // var value= Currentroom?.chairs?.where((element) => element.userId.toString()== id.toString());
-  //  
+  //
     Currentroom?.userNumber=(Currentroom?.userNumber??0)-1;
     Currentroom?.joinRooms?.removeWhere((element) => element.userId.toString()== id.toString());
     ChairsRoom.removeWhere((element) => element.userId.toString()== id.toString());
@@ -2566,7 +2611,7 @@ Addinsults({context,type,message})async{
       Dialogs().showtoast(getLang(context:NavigationService.navigatorKey.currentContext,key: "Sorry"));
 
 }
- 
+
 
     });
     notifyListeners();

@@ -30,22 +30,35 @@ import '../../util/helperclass.dart';
 var roomcontext;
 class SocketViewmodel extends ChangeNotifier{
 
-  Future ConnectRoomScocket( context,id)async {
+  Future ConnectRoomScocket(context, id) async {
+    print('🔌 SUBSCRIBE → channel: Room$id');
 
+    Glopalpusher.subscribe(
+      channelName: 'Room$id',
+      onEvent: (e) async {
+        // اطبع أي حاجة توصل، حتى أحداث pusher الداخلية
+        print('📡 ===== SOCKET EVENT =====');
+        print('📡 channel : ${e.channelName}');
+        print('📡 event   : ${e.eventName}');
+        print('📡 dataType: ${e.data.runtimeType}');
+        print('📡 data    : ${e.data}');
 
-    Glopalpusher.subscribe(channelName: 'Room$id',onEvent: (  e){
+        if (e.eventName.toString().startsWith('pusher')) return;
 
-      print(e);
-
-
-
-      degisenMenu(data:jsonDecode(e.data),state:jsonDecode(e.data)['state']);
-    });
-
-
+        try {
+          final decoded = e.data is String ? jsonDecode(e.data) : e.data;
+          print('📡 STATE   : ${decoded['state']}');
+          await degisenMenu(data: decoded, state: decoded['state']);
+        } catch (err, s) {
+          print('❌ SOCKET HANDLE ERROR: $err');
+          print(s);
+        }
+      },
+    );
 
     notifyListeners();
   }
+
 
 
 
@@ -106,10 +119,12 @@ class SocketViewmodel extends ChangeNotifier{
       case 3:
         Provider.of<RoomViewmodel>(roomcontext,listen: false).RemoveuserfromChair(id:data['data'].toString());
         break;
-      case 4:
-        var  CHATROOM = Chatroom.fromJson(data['data']);
-        Provider.of<RoomViewmodel>(roomcontext,listen: false).AddChatRoom(message: CHATROOM);
-        break;
+        case 4:
+          print('💬 CHAT MESSAGE DATA: ${data['data']}');
+          var CHATROOM = Chatroom.fromJson(data['data']);
+          print('💬 PARSED OK | content: ${CHATROOM.content}');
+          Provider.of<RoomViewmodel>(roomcontext, listen: false).AddChatRoom(message: CHATROOM);
+          break;
       case 5:
 
         var  Give = givegifts.fromJson(data['data']['gift']);

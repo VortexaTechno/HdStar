@@ -90,7 +90,7 @@ class RoomModel {
     updatedAt = json['updated_at'];
     nothostedimage=json['animateimage'];
     Token=json['Token'];
-    RoomID=json['RoomID'];
+    RoomID=json['RoomID'].toString();
     agoratoken=json['agoratoken'];
     RoomAds=json['RoomAds'];
     importance=json['importance'];

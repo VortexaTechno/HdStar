@@ -26,6 +26,15 @@ int Index=2;
 int IndexTrade=2;
 int IndexRecommended=2;
 int IndexRecommended2=2;
+
+class UploadResult {
+  final bool success;
+  final int? statusCode;
+  final String? url;
+  final String? message;
+  UploadResult({required this.success, this.statusCode, this.url, this.message});
+}
+
 class Roomapi extends RoomRepository {
   @override
   var dio = Dio(BaseOptions(
@@ -1018,37 +1027,52 @@ print(response2.data);
 
   }
 
-  Future<RoomModel> joinRooms({ context,Roomid}) async {
-     RoomViewmodel Roomss=  Provider.of<RoomViewmodel>(context,listen: false);
-     try {
+  Future<RoomModel> joinRooms({context, Roomid}) async {
+    RoomViewmodel Roomss = Provider.of<RoomViewmodel>(context, listen: false);
+    Roominfo = RoomModel(); // تصفير عشان مايرجعش غرفة قديمة لو فشل
+    try {
       FormData formData = FormData.fromMap({
         "user_id": UserId.toString(),
         "room_id": Roomid.toString(),
       });
+
+      print('🚪 JOIN ROOM → URL: ${dio.options.baseUrl}api/JoinRoom');
+      print('🚪 FIELDS: ${formData.fields}');
+
       Response response2 = await dio.post(
         'api/JoinRoom',
         data: formData,
       );
 
-      if (response2.statusCode == 200) {
+      print('📥 URL: ${response2.requestOptions.uri}');
+      print('📥 STATUS: ${response2.statusCode}');
+      print('📥 BODY: ${response2.data}');
 
-        print('Join Responce is');
+      if (response2.statusCode == 200) {
         Roominfo = RoomModel.fromJson(response2.data['Room']);
         Joinid = response2.data['Room']['joinid'];
-        print( response2.data['Room']['joinid']);
         Roomss.clearcompo();
         Roomss.hidewaitingtimer2();
-        print('JOIN ID IS $Joinid');
-        //Provider.of<LoginViewmodel>(context,listen: false).SendCodeRegester(context: context,phonenumber: "+2"+phone.toString());
-      }
-    } catch (e) {
-print(e);
-      if (e is DioError) {
-        print(e.response?.data['errNum']);
-        Dialogs().ShowErrorRegesterToast(e.response?.data['errNum'],context);
+        print('✅ JOIN ROOM SUCCESS | room id: ${Roominfo.id} | joinid: $Joinid');
       } else {
-        print(e);
+        print('❌ JOIN ROOM FAILED | status: ${response2.statusCode}');
       }
+    } on DioException catch (e) {
+      print('❌ JOIN ROOM FAILED (Dio)');
+      print('❌ URL: ${e.requestOptions.uri}');
+      print('❌ STATUS: ${e.response?.statusCode}');
+      print('❌ RESPONSE: ${e.response?.data}');
+      print('❌ TYPE: ${e.type}');
+      print('❌ MESSAGE: ${e.message}');
+
+      final data = e.response?.data;
+      if (data is Map && data['errNum'] != null) {
+        Dialogs().ShowErrorRegesterToast(data['errNum'], context);
+      }
+    } catch (e, s) {
+      // غالباً خطأ parsing في RoomModel.fromJson
+      print('❌ JOIN ROOM FAILED (Other/Parsing): $e');
+      print(s);
     }
 
     return Roominfo;
@@ -1081,32 +1105,45 @@ print(e);
 
     return state;
   }
-  Future<bool> AddackImage({  image}) async {
-    bool state=true;
+  Future<UploadResult> AddackImage({image}) async {
     try {
       FormData formData = FormData.fromMap({
         "user_id": UserId.toString(),
-        "image": await MultipartFile.fromFile(image?.path, filename: image?.path?.split('/')?.last),
+        "image": await MultipartFile.fromFile(image?.path,
+            filename: image?.path?.split('/')?.last),
       });
-      Response response2 = await dio.post(
-        'api/AddRoomimages',
-        data: formData,
-      );
-print(response2.data['Roomimages']['image']);
-      if (response2.statusCode == 200) {
-        LoginViewmodel user=  Provider.of<LoginViewmodel>(roomcontext,listen: false);
+      Response response2 = await dio.post('api/AddRoomimages', data: formData);
 
-        user.AddFirstbackground(val: response2.data['Roomimages']['image']);
-        state=true;
-        //Provider.of<LoginViewmodel>(context,listen: false).SendCodeRegester(context: context,phonenumber: "+2"+phone.toString());
+      print('STATUS: ${response2.statusCode}');
+      print('BODY: ${response2.data}');
+
+      if (response2.statusCode == 200 || response2.statusCode == 201) {
+        final url = response2.data['Roomimages']['image'].toString();
+        LoginViewmodel user =
+        Provider.of<LoginViewmodel>(roomcontext, listen: false);
+        user.AddFirstbackground(val: url);
+        return UploadResult(
+          success: true,
+          statusCode: response2.statusCode,
+          url: url,
+          message: response2.data['message']?.toString(),
+        );
       }
+      return UploadResult(success: false, statusCode: response2.statusCode);
+    } on DioException catch (e) {
+      print('STATUS: ${e.response?.statusCode}');
+      print('BODY: ${e.response?.data}');   // <-- سبب الـ 400
+      print('FIELDS: ${(e.requestOptions.data as FormData).fields}');
+      print('FILES: ${(e.requestOptions.data as FormData).files.map((f) => f.key)}');
+      return UploadResult(
+        success: false,
+        statusCode: e.response?.statusCode,
+        message: e.response?.data?.toString(),
+      );
     } catch (e) {
-      state=false;
       print(e);
-
+      return UploadResult(success: false, message: e.toString());
     }
-
-    return state;
   }
   Future<bool> FollowRoom({ context,Roomid }) async {
     bool state=true;
@@ -1247,44 +1284,56 @@ print(response2.data);
 
     return state;
   }
-  Future<RoomModel> CreateRoom({context,Category,city,image,name,backgroundimage,RoomAds}) async {
+  Future<RoomModel> CreateRoom({context, Category, city, image, name, backgroundimage, RoomAds}) async {
     try {
       FormData formData = FormData.fromMap({
         "name": name.toString(),
         "image": await MultipartFile.fromFile(image?.path, filename: image?.path?.split('/')?.last),
         "admin_id": UserId.toString(),
-        "Category":Category,
-        "city":city,
-        "animateimage":backgroundimage.toString(),
-        "RoomAds":RoomAds.toString()
+        "Category": Category,
+        "city": city,
+        "animateimage": backgroundimage.toString(),
+        "RoomAds": RoomAds.toString()
       });
+
+      print('🚀 CREATE ROOM → URL: ${dio.options.baseUrl}api/CreateRoom');
+      print('🚀 FIELDS: ${formData.fields}');
+      print('🚀 FILES: ${formData.files.map((f) => '${f.key}: ${f.value.filename}').toList()}');
 
       Response response2 = await dio.post(
         'api/CreateRoom',
         data: formData,
       );
-      print(response2.data );
-      print(response2.data['errNum']);
+
+      print('📥 URL: ${response2.requestOptions.uri}');
+      print('📥 STATUS: ${response2.statusCode}');
+      print('📥 BODY: ${response2.data}');
+
       if (response2.statusCode == 200) {
-         
         Roominfo = RoomModel.fromJson(response2.data['room']);
-      }else{
-
-      }
-    } catch (e) {
-
-
-      if (e is DioError) {
-        print(e.response?.data['errNum']);
-        Dialogs().ShowErrorRegesterToast(e.response?.data['errNum'],context);
+        print('✅ CREATE ROOM SUCCESS | room id: ${Roominfo.id}');
       } else {
-        print(e);
+        print('❌ CREATE ROOM FAILED | status: ${response2.statusCode}');
       }
+    } on DioException catch (e) {
+      print('❌ CREATE ROOM FAILED (Dio)');
+      print('❌ URL: ${e.requestOptions.uri}');
+      print('❌ STATUS: ${e.response?.statusCode}');
+      print('❌ RESPONSE: ${e.response?.data}');
+      print('❌ TYPE: ${e.type}');
+      print('❌ MESSAGE: ${e.message}');
+
+      final data = e.response?.data;
+      if (data is Map && data['errNum'] != null) {
+        Dialogs().ShowErrorRegesterToast(data['errNum'], context);
+      }
+    } catch (e, s) {
+      print('❌ CREATE ROOM FAILED (Other): $e');
+      print(s);
     }
 
     return Roominfo;
-  }
-  Future<bool>  LeaveRoom({ context,Roomid}) async {
+  }  Future<bool>  LeaveRoom({ context,Roomid}) async {
 bool leaved=false;
 
     try {
@@ -1594,43 +1643,50 @@ KickJoinadminuser({context,room_id,user_id})async{
     }
     return update;
   }
-Future<bool> sendmessage({  content,Roomid})async{
+  Future<bool> sendmessage({content, Roomid}) async {
+    bool sent = false; // الافتراضي فشل، ينجح بس لو السيرفر رد 200
+    try {
+      FormData formData = FormData.fromMap({
+        "user_id": UserId.toString(),
+        "room_id": Roomid.toString(),
+        "content": content.toString(),
+      });
 
-bool sent=true;
-  try {
-    FormData formData = FormData.fromMap({
-      "user_id": UserId.toString(),
-      "room_id": Roomid.toString(),
-      "content":content.toString(),
-    });
+      print('💬 SEND MESSAGE → URL: ${dio.options.baseUrl}api/AddChatRoom');
+      print('💬 FIELDS: ${formData.fields}');
 
-    Response response2 = await dio.post(
-      'api/AddChatRoom',
-      data: formData,
-    );
+      Response response2 = await dio.post(
+        'api/AddChatRoom',
+        data: formData,
+      );
 
-    if (response2.statusCode == 200) {
-      sent=true;
-      print('true');
-    }else{
-      sent=false;
-      print('false');
-    }
-  } catch (e) {
-    if (e is DioError) {
-       
+      print('📥 URL: ${response2.requestOptions.uri}');
+      print('📥 STATUS: ${response2.statusCode}');
+      print('📥 BODY: ${response2.data}');
 
-      if (e.response!.data['errNum'] == '3500') {
-        
+      if (response2.statusCode == 200) {
+        sent = true;
+        print('✅ SEND MESSAGE SUCCESS');
+      } else {
+        sent = false;
+        print('❌ SEND MESSAGE FAILED | status: ${response2.statusCode}');
       }
-    } else {
-      print(e);
+    } on DioException catch (e) {
+      sent = false;
+      print('❌ SEND MESSAGE FAILED (Dio)');
+      print('❌ URL: ${e.requestOptions.uri}');
+      print('❌ STATUS: ${e.response?.statusCode}');
+      print('❌ RESPONSE: ${e.response?.data}');
+      print('❌ TYPE: ${e.type}');
+      print('❌ MESSAGE: ${e.message}');
+    } catch (e, s) {
+      sent = false;
+      print('❌ SEND MESSAGE FAILED (Other): $e');
+      print(s);
     }
+
+    return sent;
   }
-
-  return sent;
-
-}
   Future<bool> sendMention({  content,Roomid,Reciver_id})async{
 
     bool sent=true;

@@ -1122,7 +1122,35 @@ print(userinfo?.MessageNumber);
 
     notifyListeners();
   }
+  List _extractList(Map value, List<String> keys) {
+    for (final k in keys) {
+      final v = value[k];
+      if (v is List && v.isNotEmpty) return v;
+    }
 
+    const ignored = ['catigoris', 'luckycatigoris', 'emojicategory'];
+    for (final entry in value.entries) {
+      final k = entry.key.toString().toLowerCase();
+      if (k.contains('categ') &&
+          !ignored.contains(k) &&
+          entry.value is List &&
+          (entry.value as List).isNotEmpty) {
+        print('AUTO-FOUND categories key: ${entry.key}');
+        return entry.value as List;
+      }
+    }
+
+    print('⚠️ No room categories from server, using defaults');
+    return [
+      {'id': 1, 'name': 'دردشة'},
+      {'id': 2, 'name': 'ترفيه'},
+      {'id': 3, 'name': 'موسيقى'},
+      {'id': 4, 'name': 'ألعاب'},
+      {'id': 5, 'name': 'أصدقاء'},
+      {'id': 6, 'name': 'عائلة'},
+      {'id': 7, 'name': 'أخرى'},
+    ];
+  }
   updateColoredMessage({context})async{
     showSpinner13();
     await userapi().
@@ -1329,7 +1357,7 @@ print(userinfo?.MessageNumber);
       LuckyGiftcatigoris=value['luckycatigoris'];
       Roomcatigoris=value['Roomcategory'];
       background=value['background'];
-      AppLink=value['version']['AppLink'];
+    AppLink = value['version']?['AppLink']?.toString() ?? '';
       Appversion=value['version']['version'];
 
 
@@ -1376,85 +1404,114 @@ Future<String?>  getId() async {
   }
 }
   getAllconstant(context) async {
+    await userapi().getAllconstant(context).then((value) async {
+      if (value == null || value is! Map) {
+        print('❌ GetConstData returned null');
+        return;
+      }
 
-//deviceId = await getId();
+      // response ناقص؟ متعتبرهوش حظر
+      if (!value.containsKey('banstatus')) {
+        print('⚠️ GetConstData incomplete response: ${value.keys}');
+        return;
+      }
 
-      await userapi().getAllconstant(context).then((value)async {
+      if (value['banstatus'].toString() == '0') {
+        print('CONST KEYS: ${value.keys}');
 
-        if (value == null) {
-          print('❌ GetConstData returned null');
-          return;
+        Banners.clear();
+        emojis.clear();
+        emojisCategory.clear();
+        Shipping.clear();
+
+        // الأهم الأول: دول مش بيعتمدوا على موديلات
+        Giftcatigoris = value['catigoris'] ?? [];
+        LuckyGiftcatigoris = value['luckycatigoris'] ?? [];
+        Roomcatigoris = _extractList(value, [
+          'Roomcategory',
+          'RoomCategory',
+          'roomcategory',
+          'Roomcategories',
+          'room_category',
+        ]);
+        background = value['background'] ?? [];
+
+        try {
+          AppLink = value['version']['AppLink']?.toString() ?? '';
+          Appversion = value['version']['version']?.toString() ?? '';
+        } catch (e) {
+          print('❌ version parse: $e');
         }
-if(value['banstatus']==0){
 
-  List list =value['Banner'];
-  Banners.clear();
-  list.forEach((element) {Banners.add(Bannerss.fromJson(element));});
-  List emojilist =value['emoji'];
-  emojilist.forEach((element) {emojis.add(emojimodel.fromJson(element));});
-  List emojilistCategory =value['emojiCategory'];
-  emojilistCategory.forEach((element) {emojisCategory.add(emojecategory.fromJson(element));});
+        // الموديلات: كل واحد معزول عشان لو وقع ميوقفش الباقي
+        try {
+          for (final e in (value['Banner'] as List? ?? [])) {
+            Banners.add(Bannerss.fromJson(e));
+          }
+        } catch (e) {
+          print('❌ Banner parse: $e');
+        }
 
+        try {
+          for (final e in (value['emoji'] as List? ?? [])) {
+            emojis.add(emojimodel.fromJson(e));
+          }
+        } catch (e) {
+          print('❌ emoji parse: $e');
+        }
 
-  Giftcatigoris=value['catigoris'];
+        try {
+          for (final e in (value['emojiCategory'] as List? ?? [])) {
+            emojisCategory.add(emojecategory.fromJson(e));
+          }
+        } catch (e) {
+          print('❌ emojiCategory parse: $e');
+        }
 
-  LuckyGiftcatigoris=value['luckycatigoris'];
-  Roomcatigoris=value['Roomcategory'];
-  background=value['background'];
-  AppLink=value['version']['AppLink'];
-  Appversion=value['version']['version'];
+        try {
+          for (final e in (value['Shipping'] as List? ?? [])) {
+            Shipping.add(shipping.fromJson(e));
+          }
+        } catch (e) {
+          print('❌ Shipping parse: $e');
+        }
 
-print(version);print(Appversion);
-  if(value['version']['ForceUpdate']==1){
-    if(Appversion!=version&&Appversion!=''){
-      Fluttertoast.showToast(
-          msg: 'يجب عليك تحديث التطبيق إلى الإصدار الأخير  حتي تستطيع استخدامه',
-          toastLength: Toast.LENGTH_LONG,
-          gravity: ToastGravity.CENTER,
-          timeInSecForIosWeb: 2,
-          backgroundColor: Colors.black,
-          textColor:Colors.white,
-          fontSize: 15.0
-      );
+        // تحديث إجباري
+        try {
+          if (value['version']['ForceUpdate'].toString() == '1') {
+            if (Appversion != version && Appversion != '') {
+              Fluttertoast.showToast(
+                  msg: 'يجب عليك تحديث التطبيق إلى الإصدار الأخير  حتي تستطيع استخدامه',
+                  toastLength: Toast.LENGTH_LONG,
+                  gravity: ToastGravity.CENTER,
+                  timeInSecForIosWeb: 2,
+                  backgroundColor: Colors.black,
+                  textColor: Colors.white,
+                  fontSize: 15.0);
+              Helper().launchInBrowser(AppLink);
+              SystemNavigator.pop();
+            }
+          }
+        } catch (e) {
+          print('❌ ForceUpdate check: $e');
+        }
 
-        Helper().launchInBrowser(AppLink);
-        SystemNavigator.pop();
-
-    }else{
-
-    }
-  }
-
-
-  List datalist =value['Shipping'];
-
-
-
-
-  datalist.forEach((element) {
-    Shipping.add(shipping.fromJson(element));
-  });
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.setString('ConstData',jsonEncode(value));
-
-
-
-
-
-
-}else{
-  Dialogs().showtoast('تم حظر هذا الحساب');
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  prefs.clear();
-  navigateTo(context: context, screen: LoginScrean());
-
-}
-
-
+        try {
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          prefs.setString('ConstData', jsonEncode(value));
+        } catch (e) {
+          print('❌ save prefs: $e');
+        }
+      } else {
+        // حظر حقيقي: banstatus موجودة وقيمتها مش 0
+        Dialogs().showtoast('تم حظر هذا الحساب');
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.clear();
+        navigateTo(context: context, screen: LoginScrean());
+      }
 
       notifyListeners();
-
-     });
+    });
     notifyListeners();
   }
   Future getReportImage( context) async {

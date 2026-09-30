@@ -4,7 +4,7 @@ import 'package:ahlachat/util/app_constants.dart';
 class emojecategory {
   int? id;
   String? name;
-  String? status;
+  int? status;
 
   List<emojimodel>? emoji;
 

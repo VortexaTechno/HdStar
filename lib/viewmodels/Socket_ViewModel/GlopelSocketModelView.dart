@@ -20,9 +20,23 @@ class GlopelViewmodel extends ChangeNotifier{
 
   pusherinit()async{
     await Glopalpusher.init(
-        apiKey: "14ea5426c9c73874fba4",
+        apiKey: "8fa13ab9035fe6dc3f9a",
         cluster: "mt1",
-      onConnectionStateChange: onConnectionStateChange,
+      onConnectionStateChange: (current, previous) {
+        print('🔗 PUSHER STATE: $previous → $current');
+      },
+      onError: (message, code, error) {
+        print('❌ PUSHER ERROR: $message | code: $code | $error');
+      },
+      onSubscriptionSucceeded: (channel, data) {
+        print('✅ SUBSCRIBED: $channel | $data');
+      },
+      onSubscriptionError: (message, error) {
+        print('❌ SUBSCRIPTION ERROR: $message | $error');
+      },
+      onEvent: (event) {
+        print('🌐 GLOBAL EVENT: ${event.channelName} | ${event.eventName} | ${event.data}');
+      },
     );
     await Glopalpusher.connect();
 
