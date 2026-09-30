@@ -264,6 +264,7 @@ class SocketViewmodel extends ChangeNotifier{
           Provider.of<RoomViewmodel>(roomcontext,listen: false).RemoveuserfromRoom(id:data['data'].toString());
           break;
         case 17:
+          print('🎁 Emoji EVENT DATA: ${data['data']}');
           Provider.of<LoginViewmodel>(roomcontext,listen: false).adduserimoge(id: int.parse(data['data']['user']),imoges:data['data']['emoji'] );
          break;
         case 18:
