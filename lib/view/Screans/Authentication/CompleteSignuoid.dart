@@ -361,8 +361,10 @@ class _CompleteSignUpIDState extends State<CompleteSignUpID> {
                                         const SizedBox(width: 15),
                                         Image.asset(
                                           user.Flag2,
-                                          package: countryCodePackageName,
                                           width: SizeConfig.TenSize! * 3,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return const SizedBox.shrink();
+                                          },
                                         ),
                                       ],
                                     )

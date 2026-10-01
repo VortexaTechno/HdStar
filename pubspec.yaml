@@ -135,6 +135,8 @@ flutter:
     - assets/image/
     - assets/language/
     - assets/audios/
+    - assets/raw/country_codes.json
+    - flags/
 
   fonts:
     - family: cairo

@@ -1982,60 +1982,213 @@ if(userinfo.music!=null&&userinfo.music!=''&&Gmail==null){
 
     return userinfo;
   }
-  RegesterNewUser2({password,context,ginder,Flag,city,image,name ,year,month,day}) async {
-
-    var  map;
+  RegesterNewUser2({
+    password,
+    context,
+    ginder,
+    Flag,
+    city,
+    image,
+    name,
+    year,
+    month,
+    day,
+  }) async {
     try {
+      // =========================
+      // URL
+      // =========================
+      const String endpoint = '/api/SignUpaccountwithoutphone';
 
-        map={
-          "name":name.toString(),
-          "year":year.toString(),
-          "month":month.toString(),
-          "day": day.toString(),
-          "image":await MultipartFile.fromFile(image?.path, filename: image?.path?.split('/')?.last),
-          "notifi_token":notifitoken.toString(),
-          "city":city.toString(),
-          "Flag":Flag.toString(),
-          "ginder":ginder.toString(),
-          "password":password.toString()
+      print('');
+      print('========================================');
+      print('🚀 REGISTER NEW USER');
+      print('========================================');
 
+      print('🌐 API URL: ${dio.options.baseUrl}$endpoint');
+      print('📌 METHOD: POST');
 
-        };
+      // =========================
+      // Request Data
+      // =========================
+      print('');
+      print('📤 REQUEST DATA:');
+      print('name          : $name');
+      print('year          : $year');
+      print('month         : $month');
+      print('day           : $day');
+      print('image         : ${image?.path}');
+      print('notifi_token  : $notifitoken');
+      print('city          : $city');
+      print('Flag          : $Flag');
+      print('ginder        : $ginder');
+      print('password      : $password');
 
+      // =========================
+      // Form Data
+      // =========================
+      final map = {
+        "name": name.toString(),
+        "year": year.toString(),
+        "month": month.toString(),
+        "day": day.toString(),
+        "image": await MultipartFile.fromFile(
+          image!.path,
+          filename: image.path.split('/').last,
+        ),
+        "notifi_token": notifitoken.toString(),
+        "city": city.toString(),
+        "Flag": Flag.toString(),
+        "ginder": ginder.toString(),
+        "password": password.toString(),
+      };
 
-      FormData formData = new FormData.fromMap(map);
+      final FormData formData = FormData.fromMap(map);
 
-      Response response2 = await dio.post(
-        '/api/SignUpaccountwithoutphone',
+      print('');
+      print('📦 FORM DATA CREATED');
+      print('➡️ Sending request...');
+
+      // =========================
+      // API REQUEST
+      // =========================
+      final Response response2 = await dio.post(
+        endpoint,
         data: formData,
       );
 
+      // =========================
+      // RESPONSE
+      // =========================
+      print('');
+      print('========================================');
+      print('✅ API RESPONSE');
+      print('========================================');
+
+      print('🌐 URL: ${response2.requestOptions.uri}');
+      print('📌 METHOD: ${response2.requestOptions.method}');
+      print('📊 STATUS CODE: ${response2.statusCode}');
+      print('📊 STATUS MESSAGE: ${response2.statusMessage}');
+      print('📥 RESPONSE DATA: ${response2.data}');
+
+      // =========================
+      // SUCCESS
+      // =========================
       if (response2.statusCode == 200) {
-        userinfo = usermodel.fromJson(response2.data['users']);
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        prefs.setString('token', userinfo.rememperToken.toString());
-        prefs.setString('UserData', jsonEncode(userinfo)) ;
-        print(userinfo.rememperToken);
-        Token=userinfo.rememperToken.toString();
-        UserId=userinfo.id.toString();
-        if(userinfo.music!=null&&userinfo.music!=''&&Gmail!=null){
-          Helper().PlaylinkMusic(path:userinfo.music );
+        print('');
+        print('🎉 REGISTER SUCCESS');
+        print('========================================');
+
+        if (response2.data['users'] != null) {
+          userinfo = usermodel.fromJson(response2.data['users']);
+
+          print('👤 USER ID: ${userinfo.id}');
+          print('🔑 TOKEN: ${userinfo.rememperToken}');
         }
 
-        Navigator.pushNamed(context, AppConstants.Buttom_Navigation);
+        SharedPreferences prefs =
+        await SharedPreferences.getInstance();
 
-      }
+        await prefs.setString(
+          'token',
+          userinfo.rememperToken.toString(),
+        );
 
-    }catch (e) {
-      print(e);
-      if (e is DioError) {
+        await prefs.setString(
+          'UserData',
+          jsonEncode(userinfo),
+        );
 
-        Dialogs().ShowErrorToast(e.response!.data['errNum'],context);
+        Token = userinfo.rememperToken.toString();
+        UserId = userinfo.id.toString();
+
+        print('💾 Token saved successfully');
+        print('💾 UserData saved successfully');
+
+        if (userinfo.music != null &&
+            userinfo.music != '' &&
+            Gmail != null) {
+          Helper().PlaylinkMusic(
+            path: userinfo.music,
+          );
+        }
+
+        print('➡️ Navigating to Bottom Navigation');
+
+        Navigator.pushNamed(
+          context,
+          AppConstants.Buttom_Navigation,
+        );
       } else {
-
+        print('');
+        print('⚠️ REQUEST FINISHED WITH NON-200 STATUS');
+        print('Status: ${response2.statusCode}');
+        print('Response: ${response2.data}');
       }
-    }
+    } on DioError catch (e) {
+      print('');
+      print('========================================');
+      print('❌ DIO ERROR');
+      print('========================================');
 
+      print('🌐 URL: ${e.requestOptions.uri}');
+      print('📌 METHOD: ${e.requestOptions.method}');
+      print('📊 STATUS CODE: ${e.response?.statusCode}');
+      print('📊 STATUS MESSAGE: ${e.response?.statusMessage}');
+      print('📥 RESPONSE DATA: ${e.response?.data}');
+      print('❌ ERROR TYPE: ${e.type}');
+      print('❌ ERROR MESSAGE: ${e.message}');
+
+      // Show server error
+      if (e.response != null) {
+        final data = e.response?.data;
+
+        print('');
+        print('🔴 SERVER ERROR DATA: $data');
+
+        if (data is Map) {
+          print('errNum: ${data['errNum']}');
+          print('msg: ${data['msg']}');
+          print('message: ${data['message']}');
+          print('error: ${data['error']}');
+
+          final errorMessage =
+              data['msg'] ??
+                  data['message'] ??
+                  data['error'] ??
+                  'Request failed';
+
+          Dialogs().ShowErrorToast(
+            errorMessage.toString(),
+            context,
+          );
+        } else {
+          Dialogs().ShowErrorToast(
+            'Server Error: ${e.response?.statusCode}',
+            context,
+          );
+        }
+      } else {
+        // No response from server
+        Dialogs().ShowErrorToast(
+          'Connection error: ${e.message}',
+          context,
+        );
+      }
+    } catch (e, stackTrace) {
+      print('');
+      print('========================================');
+      print('❌ UNKNOWN ERROR');
+      print('========================================');
+
+      print('Error: $e');
+      print('StackTrace: $stackTrace');
+
+      Dialogs().ShowErrorToast(
+        e.toString(),
+        context,
+      );
+    }
 
     return userinfo;
   }
