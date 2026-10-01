@@ -55,29 +55,62 @@ class Roomapi extends RoomRepository {
   List<KickedUser> KickeduserRooms=[];
   List<joinRoom> joinuserRooms=[];
   RoomModel Roominfo=RoomModel();
-  Updatemute({room_id, user_id, context,state})async{
-   bool Mute= false;
+  Future<bool> Updatemute({
+    required dynamic room_id,
+    required dynamic user_id,
+    required context,
+
+    required dynamic state,
+  }) async {
+    bool mute = false;
+
     try {
-      FormData formData = FormData.fromMap({
+      final formData = FormData.fromMap({
         "user_id": user_id.toString(),
-        "state":int.parse(state.toString()),
-        "room_id":room_id.toString()
+        "state": int.parse(state.toString()),
+        "room_id": room_id.toString(),
       });
-      Response response2 = await dio.post(
+
+      print('========== UPDATE MUTE ==========');
+      print('URL: ${dio.options.baseUrl}api/updatemutechair');
+      print('METHOD: POST');
+      print('user_id: ${user_id.toString()}');
+      print('state: ${int.parse(state.toString())}');
+      print('room_id: ${room_id.toString()}');
+      print('=================================');
+
+      final Response response = await dio.post(
         'api/updatemutechair',
         data: formData,
       );
-       
-      if (response2.statusCode == 200) {
-        Mute=true;
-      }else{
-        Mute=false;
+
+      print('========== UPDATE MUTE RESPONSE ==========');
+      print('STATUS: ${response.statusCode}');
+      print('DATA: ${response.data}');
+      print('==========================================');
+
+      if (response.statusCode == 200) {
+        mute = true;
+      } else {
+        mute = false;
       }
-    } catch (e) {
-    print(e);
+    } on DioException catch (e) {
+      print('========== UPDATE MUTE ERROR ==========');
+      print('URL: ${e.requestOptions.uri}');
+      print('METHOD: ${e.requestOptions.method}');
+      print('REQUEST DATA: ${e.requestOptions.data}');
+      print('STATUS: ${e.response?.statusCode}');
+      print('RESPONSE DATA: ${e.response?.data}');
+      print('MESSAGE: ${e.message}');
+      print('=======================================');
+    } catch (e, stackTrace) {
+      print('========== UPDATE MUTE UNKNOWN ERROR ==========');
+      print('ERROR: $e');
+      print('STACK: $stackTrace');
+      print('===============================================');
     }
 
-    return Mute;
+    return mute;
   }
   Future<RoomModel> UpdateRoom({name,roomid, image,backimage ,Category,lock,password,RoomAds})async{
     try {
@@ -457,7 +490,7 @@ class Roomapi extends RoomRepository {
  Index=2;
     try {
       Response response2 = await dio.get(
-        'https://hdcompany.fun/api/GetRooms2/$SelectedRoomCategory',
+        'https://egyptiantechs.com/api/GetRooms/$SelectedRoomCategory',
       );
 
       if (response2.statusCode == 200) {

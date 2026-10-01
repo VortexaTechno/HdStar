@@ -11,17 +11,45 @@ import '../Music_Viewmodel/MusicViewmodel.dart';
 import '../Room_Viewmodel/Room_Viewmodel.dart';
 
 class AgoraViewmodel extends ChangeNotifier {
-  /// App ID on the Agora dashboard
-  String APP_ID = '2d1320fdea0940e58ff09f630e47d9a8';
+  /// Agora App ID
+  static const String APP_ID =
+      '2d1320fdea0940e58ff09f630e47d9a8';
 
   bool muted = true;
+
   bool KickedFromChair = false;
+
+  bool disableAudio = false;
+
+  bool playmusic = false;
+
+  bool Rebeate = false;
 
   RtcEngine? _engine;
 
   List usersuid = [];
 
-  bool Rebeate = false;
+  List PlaySong = [];
+
+  List<Map> userjoin = [];
+
+  List speakerids = [];
+
+  List UserIDS = [];
+
+  int index = 0;
+
+  int userjoindid = 0;
+
+  int speakeruid = 0;
+
+  int volumnaudio = 50;
+
+  double initialValue = 0.0;
+
+  // ============================================================
+  // GENERAL
+  // ============================================================
 
   void ChangeRepeate(state) {
     Rebeate = state;
@@ -33,118 +61,626 @@ class AgoraViewmodel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> EndAgora() async {
-    muted = true;
-
-    await _engine?.leaveChannel();
-
-    notifyListeners();
-  }
-
-  bool disableAudio = false;
-
-  void disableAudioroomvoice() {
-    disableAudio = false;
-    playmusic = false;
-    PlaySong.clear();
-
-    notifyListeners();
-  }
-
-  Future<void> closeroomvoice() async {
-    await _engine?.disableAudio();
-
-    disableAudio = true;
-
-    notifyListeners();
-  }
-
-  Future<void> enableroomvoice() async {
-    await _engine?.enableAudio();
-
-    disableAudio = false;
-
-    notifyListeners();
-  }
-
-  var initialValue = 0.0;
+  // ============================================================
+  // AGORA INITIALIZATION
+  // ============================================================
 
   Future<void> initialize({
     ClientRoleType? role,
     required String Token,
     required String channelName,
   }) async {
-    await _initAgoraRtcEngine(role: role);
+    try {
+      print('');
+      print('========================================');
+      print('🎙️ AGORA INITIALIZE');
+      print('========================================');
+      print('🎙️ APP ID: $APP_ID');
+      print(
+        '🎙️ TOKEN: '
+            '${Token.isEmpty ? "EMPTY ❌" : "RECEIVED ✅"}',
+      );
+      print('🎙️ TOKEN LENGTH: ${Token.length}');
+      print('🎙️ CHANNEL: $channelName');
+      print('🎙️ USER ID: $UserId');
+      print('🎙️ ROLE: $role');
+      print('========================================');
 
-    _addAgoraEventHandlers();
+      // --------------------------------------------------------
+      // Validate token
+      // --------------------------------------------------------
 
-    await _engine?.joinChannel(
-      token: Token,
-      channelId: channelName,
-      uid: int.parse(UserId!),
-      options: ChannelMediaOptions(
-        clientRoleType: role ?? ClientRoleType.clientRoleAudience,
-        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-      ),
-    );
+      if (Token.trim().isEmpty) {
+        print('❌ AGORA ERROR: Token is EMPTY');
+        return;
+      }
 
-    notifyListeners();
+      if (channelName.trim().isEmpty) {
+        print('❌ AGORA ERROR: Channel name is EMPTY');
+        return;
+      }
+
+      if (UserId == null || UserId!.trim().isEmpty) {
+        print('❌ AGORA ERROR: UserId is EMPTY');
+        return;
+      }
+
+      final int uid = int.parse(UserId!);
+
+      // --------------------------------------------------------
+      // If old engine exists, leave it before creating a new one
+      // --------------------------------------------------------
+
+      if (_engine != null) {
+        try {
+          print('♻️ Existing Agora engine found');
+
+          await _engine!.leaveChannel();
+
+          print('✅ Previous Agora channel left');
+        } catch (e) {
+          print('⚠️ Error leaving previous channel: $e');
+        }
+
+        try {
+          await _engine!.release();
+
+          print('✅ Previous Agora engine released');
+        } catch (e) {
+          print('⚠️ Error releasing previous Agora engine: $e');
+        }
+
+        _engine = null;
+      }
+
+      // --------------------------------------------------------
+      // Initialize Agora engine
+      // --------------------------------------------------------
+
+      await _initAgoraRtcEngine(
+        role: role,
+      );
+
+      // --------------------------------------------------------
+      // Register events
+      // --------------------------------------------------------
+
+      _addAgoraEventHandlers();
+
+      // --------------------------------------------------------
+      // Determine role
+      // --------------------------------------------------------
+
+      final ClientRoleType currentRole =
+          role ?? ClientRoleType.clientRoleAudience;
+
+      final bool isBroadcaster =
+          currentRole == ClientRoleType.clientRoleBroadcaster;
+
+      // --------------------------------------------------------
+      // Set local mute state
+      // --------------------------------------------------------
+
+      if (isBroadcaster) {
+        muted = false;
+      } else {
+        muted = true;
+      }
+
+      // --------------------------------------------------------
+      // Agora channel options
+      // --------------------------------------------------------
+
+      final ChannelMediaOptions options =
+      ChannelMediaOptions(
+        clientRoleType: currentRole,
+
+        channelProfile:
+        ChannelProfileType.channelProfileLiveBroadcasting,
+
+        // Broadcaster publishes microphone.
+        publishMicrophoneTrack: isBroadcaster,
+
+        // This application is audio room only.
+        publishCameraTrack: false,
+
+        // Audience must automatically receive remote audio.
+        autoSubscribeAudio: true,
+
+        // No video needed.
+        autoSubscribeVideo: false,
+      );
+
+      print('');
+      print('🚀 AGORA JOIN CHANNEL');
+      print('➡️ CHANNEL: $channelName');
+      print('➡️ UID: $uid');
+      print('➡️ ROLE: $currentRole');
+      print(
+        '➡️ PUBLISH MIC: '
+            '${options.publishMicrophoneTrack}',
+      );
+      print('➡️ AUTO SUBSCRIBE AUDIO: true');
+      print('➡️ AUTO SUBSCRIBE VIDEO: false');
+      print(
+        '➡️ TOKEN PREVIEW: '
+            '${Token.substring(
+          0,
+          Token.length > 15 ? 15 : Token.length,
+        )}...',
+      );
+      print('');
+
+      // --------------------------------------------------------
+      // Join Agora channel
+      // --------------------------------------------------------
+
+      await _engine!.joinChannel(
+        token: Token,
+        channelId: channelName,
+        uid: uid,
+        options: options,
+      );
+
+      print('✅ AGORA JOIN REQUEST SENT');
+      print('========================================');
+      print('');
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('');
+      print('========================================');
+      print('❌ AGORA INITIALIZE/JOIN ERROR');
+      print('========================================');
+      print('ERROR: $e');
+      print('STACKTRACE: $stackTrace');
+      print('========================================');
+
+      // Don't rethrow here because this method is called from
+      // room navigation and we don't want to crash the app.
+    }
   }
 
-  Future<void> unmuteusermic(uid) async {
-    await _engine?.muteRemoteAudioStream(
-      uid: uid,
-      mute: false,
-    );
-
-    notifyListeners();
-  }
+  // ============================================================
+  // AGORA ENGINE
+  // ============================================================
 
   Future<void> _initAgoraRtcEngine({
     ClientRoleType? role,
   }) async {
-    _engine = createAgoraRtcEngine();
+    try {
+      print('🔧 Creating Agora engine...');
 
-    await _engine?.initialize(
-      const RtcEngineContext(
-        appId: 'a8200d4d7e4a4dd589fd7e1c1e9fe0fc',
-      ),
-    );
+      _engine = createAgoraRtcEngine();
 
-    await _engine?.enableAudio();
-
-    await _engine?.setChannelProfile(
-      ChannelProfileType.channelProfileLiveBroadcasting,
-    );
-
-    if (role == ClientRoleType.clientRoleBroadcaster) {
-      await _engine?.adjustRecordingSignalVolume(
-        400,
+      await _engine!.initialize(
+        const RtcEngineContext(
+          appId: APP_ID,
+        ),
       );
 
-      muted = false;
-    } else {
+      print('✅ Agora engine initialized');
+
+      // --------------------------------------------------------
+      // Enable audio
+      // --------------------------------------------------------
+
+      await _engine!.enableAudio();
+
+      print('✅ Agora audio enabled');
+
+      // --------------------------------------------------------
+      // Live broadcasting profile
+      // --------------------------------------------------------
+
+      await _engine!.setChannelProfile(
+        ChannelProfileType.channelProfileLiveBroadcasting,
+      );
+
+      print('✅ Agora channel profile set');
+
+      // --------------------------------------------------------
+      // Enable audio volume indication
+      // Used for speaker indicators.
+      // --------------------------------------------------------
+
+      await _engine!.enableAudioVolumeIndication(
+        interval: 250,
+        smooth: 3,
+        reportVad: true,
+      );
+
+      print('✅ Audio volume indication enabled');
+
+      // --------------------------------------------------------
+      // Set initial role
+      // --------------------------------------------------------
+
+      if (role != null) {
+        await _engine!.setClientRole(
+          role: role,
+        );
+
+        print('✅ Initial role set: $role');
+      }
+
+      // --------------------------------------------------------
+      // Initial microphone state
+      // --------------------------------------------------------
+
+      if (role == ClientRoleType.clientRoleBroadcaster) {
+        muted = false;
+
+        await _engine!.muteLocalAudioStream(
+         false,
+        );
+
+        await _engine!.adjustRecordingSignalVolume(
+          400,
+        );
+
+        print('🎤 Initial role = BROADCASTER');
+        print('🎤 Microphone enabled');
+      } else {
+        muted = true;
+
+        print('👂 Initial role = AUDIENCE');
+        print('👂 Microphone publishing disabled');
+      }
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('❌ AGORA ENGINE INITIALIZATION ERROR');
+      print('ERROR: $e');
+      print('STACKTRACE: $stackTrace');
+
+      rethrow;
+    }
+  }
+
+  // ============================================================
+  // END AGORA
+  // ============================================================
+
+  Future<void> EndAgora() async {
+    try {
+      print('🛑 END AGORA');
+
       muted = true;
-    }
 
-    await _engine?.enableAudioVolumeIndication(
-      interval: 250,
-      smooth: 3,
-      reportVad: true,
-    );
+      usersuid.clear();
+      userjoin.clear();
+      speakerids.clear();
+      UserIDS.clear();
 
-    if (role != null) {
-      await _engine?.setClientRole(role: role);
+      if (_engine != null) {
+        await _engine!.leaveChannel();
+
+        print('✅ Agora channel left');
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ EndAgora ERROR: $e');
     }
+  }
+
+  // ============================================================
+  // AUDIO ROOM ENABLE / DISABLE
+  // ============================================================
+
+  void disableAudioroomvoice() {
+    disableAudio = false;
+
+    playmusic = false;
+
+    PlaySong.clear();
 
     notifyListeners();
   }
 
-  bool playmusic = false;
+  Future<void> closeroomvoice() async {
+    try {
+      await _engine?.disableAudio();
 
-  List PlaySong = [];
+      disableAudio = true;
 
-  int index = 0;
+      print('🔇 ROOM AUDIO DISABLED');
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ closeroomvoice ERROR: $e');
+    }
+  }
+
+  Future<void> enableroomvoice() async {
+    try {
+      await _engine?.enableAudio();
+
+      disableAudio = false;
+
+      print('🔊 ROOM AUDIO ENABLED');
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ enableroomvoice ERROR: $e');
+    }
+  }
+
+  // ============================================================
+  // BROADCASTER / AUDIENCE
+  // ============================================================
+
+  Future<void> SetasBroadcaster() async {
+    try {
+      print('');
+      print('🎤 SWITCHING TO BROADCASTER');
+
+      if (_engine == null) {
+        print('❌ Agora engine is NULL');
+        return;
+      }
+
+      // Change role first.
+      await _engine!.setClientRole(
+        role: ClientRoleType.clientRoleBroadcaster,
+      );
+
+      print('✅ Client role = BROADCASTER');
+
+      // Enable microphone publishing.
+      await _engine!.muteLocalAudioStream(
+         false,
+      );
+
+      print('🎤 Local microphone UNMUTED');
+
+      // Set microphone volume.
+      await _engine!.adjustRecordingSignalVolume(
+        400,
+      );
+
+      muted = false;
+
+      print('🎤 Microphone volume = 400');
+      print('🎤 BROADCASTER READY');
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('❌ SetasBroadcaster ERROR');
+      print('ERROR: $e');
+      print('STACKTRACE: $stackTrace');
+    }
+  }
+
+  Future<void> SetasAudience() async {
+    try {
+      print('');
+      print('👂 SWITCHING TO AUDIENCE');
+
+      if (_engine == null) {
+        print('❌ Agora engine is NULL');
+        return;
+      }
+
+      // Stop publishing local microphone.
+      await _engine!.muteLocalAudioStream(
+         true,
+      );
+
+      // Change role.
+      await _engine!.setClientRole(
+        role: ClientRoleType.clientRoleAudience,
+      );
+
+      muted = true;
+
+      print('🔇 Local microphone publishing disabled');
+      print('👂 Client role = AUDIENCE');
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('❌ SetasAudience ERROR');
+      print('ERROR: $e');
+      print('STACKTRACE: $stackTrace');
+    }
+  }
+
+  // ============================================================
+  // MUTE LOCAL MICROPHONE
+  // ============================================================
+
+  Future<void> Mute() async {
+    try {
+      print('');
+      print('🔇 MUTE LOCAL MICROPHONE');
+
+      if (_engine == null) {
+        print('❌ Agora engine is NULL');
+        return;
+      }
+
+      await _engine!.muteLocalAudioStream(
+         true,
+      );
+
+      muted = true;
+
+      print('✅ LOCAL MICROPHONE MUTED');
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('❌ Mute ERROR');
+      print('ERROR: $e');
+      print('STACKTRACE: $stackTrace');
+    }
+  }
+
+  // ============================================================
+  // UNMUTE LOCAL MICROPHONE
+  // ============================================================
+
+  Future<void> UnMute() async {
+    try {
+      print('');
+      print('🎤 UNMUTE LOCAL MICROPHONE');
+
+      if (_engine == null) {
+        print('❌ Agora engine is NULL');
+        return;
+      }
+
+      // User needs broadcaster role to publish microphone.
+      await _engine!.setClientRole(
+        role: ClientRoleType.clientRoleBroadcaster,
+      );
+
+      print('✅ Client role = BROADCASTER');
+
+      // Enable local microphone publishing.
+      await _engine!.muteLocalAudioStream(
+         false,
+      );
+
+      print('🎤 Local microphone UNMUTED');
+
+      await _engine!.adjustRecordingSignalVolume(
+        400,
+      );
+
+      muted = false;
+
+      print('🎤 Recording volume = 400');
+      print('✅ LOCAL MICROPHONE READY');
+
+      notifyListeners();
+    } catch (e, stackTrace) {
+      print('❌ UnMute ERROR');
+      print('ERROR: $e');
+      print('STACKTRACE: $stackTrace');
+    }
+  }
+
+  // ============================================================
+  // KICKED FROM CHAIR
+  // ============================================================
+
+  Future<void> keickedfromasAudience() async {
+    try {
+      muted = true;
+
+      JoinChairs = false;
+      KickedFromChair = false;
+
+      if (_engine != null) {
+        await _engine!.muteLocalAudioStream(
+        true,
+        );
+
+        await _engine!.setClientRole(
+          role: ClientRoleType.clientRoleAudience,
+        );
+      }
+
+      print('👢 User moved to AUDIENCE');
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ keickedfromasAudience ERROR: $e');
+    }
+  }
+
+  // ============================================================
+  // REMOTE USER AUDIO
+  // ============================================================
+
+  Future<void> unmuteusermic(uid) async {
+    try {
+      print('🔊 UNMUTE REMOTE USER: $uid');
+
+      await _engine?.muteRemoteAudioStream(
+        uid: uid,
+        mute: false,
+      );
+
+      print('✅ Remote user $uid audio enabled');
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ unmuteusermic ERROR: $e');
+    }
+  }
+
+  Future<void> muteusermic(uid) async {
+    try {
+      print('🔇 MUTE REMOTE USER: $uid');
+
+      await _engine?.muteRemoteAudioStream(
+        uid: uid,
+        mute: true,
+      );
+
+      print('✅ Remote user $uid audio muted');
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ muteusermic ERROR: $e');
+    }
+  }
+
+  Future<void> xxxxx(uid) async {
+    try {
+      await _engine?.muteRemoteAudioStream(
+        uid: uid,
+        mute: true,
+      );
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ xxxxx ERROR: $e');
+    }
+  }
+
+  Future<void> mutebyuid({
+    required uid,
+    required context,
+  }) async {
+    try {
+      final RoomViewmodel Room =
+      Provider.of<RoomViewmodel>(
+        context,
+        listen: false,
+      );
+
+      if (Room.Mutedids.contains(uid)) {
+        Room.Mutedids.remove(uid);
+
+        await _engine?.muteRemoteAudioStream(
+          uid: uid,
+          mute: false,
+        );
+
+        print('🔊 REMOTE USER $uid UNMUTED');
+      } else {
+        Room.Mutedids.add(uid);
+
+        await _engine?.muteRemoteAudioStream(
+          uid: uid,
+          mute: true,
+        );
+
+        print('🔇 REMOTE USER $uid MUTED');
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ mutebyuid ERROR: $e');
+    }
+  }
+
+  // ============================================================
+  // AUDIO MIXING / MUSIC
+  // ============================================================
 
   Future<void> StartAudioMexing({
     required String filePath,
@@ -152,97 +688,120 @@ class AgoraViewmodel extends ChangeNotifier {
     required String tittle,
     required int indexsong,
   }) async {
-    PlaySong.clear();
+    try {
+      PlaySong.clear();
 
-    playmusic = true;
-    index = indexsong;
+      playmusic = true;
 
-    PlaySong.add(tittle);
+      index = indexsong;
 
-    await _engine?.startAudioMixing(
-      filePath: filePath,
-      loopback: false,
-      cycle: -1,
-    );
+      PlaySong.add(tittle);
 
-    notifyListeners();
+      await _engine?.startAudioMixing(
+        filePath: filePath,
+        loopback: false,
+        cycle: -1,
+      );
+
+      print('🎵 Audio mixing started: $filePath');
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ StartAudioMexing ERROR: $e');
+    }
   }
 
   Future<void> next(context) async {
-    MusicViewModel music =
-    Provider.of<MusicViewModel>(context, listen: false);
-
-    if (music.SongsList.length == index + 1) {
-      Dialogs().showtoast('لا يوجد اغاني اخري');
-    } else {
-      PlaySong.clear();
-
-      playmusic = true;
-
-      PlaySong.add(
-        music.SongsList[index + 1].displayName,
+    try {
+      final MusicViewModel music =
+      Provider.of<MusicViewModel>(
+        context,
+        listen: false,
       );
 
-      await _engine?.startAudioMixing(
-        filePath: music.SongsList[index + 1].data,
-        loopback: false,
-        cycle: -1,
-      );
+      if (music.SongsList.length == index + 1) {
+        Dialogs().showtoast('لا يوجد اغاني اخري');
+      } else {
+        PlaySong.clear();
 
-      music.play(
-        music.SongsList[index + 1].data,
-      );
+        playmusic = true;
 
-      index = index + 1;
+        PlaySong.add(
+          music.SongsList[index + 1].displayName,
+        );
+
+        await _engine?.startAudioMixing(
+          filePath: music.SongsList[index + 1].data,
+          loopback: false,
+          cycle: -1,
+        );
+
+        music.play(
+          music.SongsList[index + 1].data,
+        );
+
+        index = index + 1;
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ next ERROR: $e');
     }
-
-    notifyListeners();
   }
 
   Future<void> last(context) async {
-    MusicViewModel music =
-    Provider.of<MusicViewModel>(context, listen: false);
-
-    print(index + 1);
-    print(music.SongsList.length);
-
-    if (index <= 0) {
-      Dialogs().showtoast('لا يوجد اغاني سابقة');
-    } else {
-      PlaySong.clear();
-
-      playmusic = true;
-
-      PlaySong.add(
-        music.SongsList[index - 1].displayName,
+    try {
+      final MusicViewModel music =
+      Provider.of<MusicViewModel>(
+        context,
+        listen: false,
       );
 
-      await _engine?.startAudioMixing(
-        filePath: music.SongsList[index - 1].data,
-        loopback: false,
-        cycle: -1,
-      );
+      print(index + 1);
+      print(music.SongsList.length);
 
-      music.play(
-        music.SongsList[index - 1].data,
-      );
+      if (index <= 0) {
+        Dialogs().showtoast('لا يوجد اغاني سابقة');
+      } else {
+        PlaySong.clear();
 
-      index = index - 1;
+        playmusic = true;
+
+        PlaySong.add(
+          music.SongsList[index - 1].displayName,
+        );
+
+        await _engine?.startAudioMixing(
+          filePath: music.SongsList[index - 1].data,
+          loopback: false,
+          cycle: -1,
+        );
+
+        music.play(
+          music.SongsList[index - 1].data,
+        );
+
+        index = index - 1;
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('❌ last ERROR: $e');
     }
-
-    notifyListeners();
   }
 
-  int volumnaudio = 50;
-
   Future<void> setaudiovolum(int volum) async {
-    volumnaudio = volum;
+    try {
+      volumnaudio = volum;
 
-    await _engine?.adjustAudioMixingVolume(
-      volum,
-    );
+      await _engine?.adjustAudioMixingVolume(
+        volum,
+      );
 
-    notifyListeners();
+      notifyListeners();
+    } catch (e) {
+      print('❌ setaudiovolum ERROR: $e');
+    }
   }
 
   void volumnausdio(int volum) {
@@ -252,221 +811,259 @@ class AgoraViewmodel extends ChangeNotifier {
   }
 
   Future<void> stopAudioMexing(context) async {
-    playmusic = false;
+    try {
+      playmusic = false;
 
-    MusicViewModel music =
-    Provider.of<MusicViewModel>(context, listen: false);
+      final MusicViewModel music =
+      Provider.of<MusicViewModel>(
+        context,
+        listen: false,
+      );
 
-    await _engine?.pauseAudioMixing();
+      await _engine?.pauseAudioMixing();
 
-    music.player.pause();
+      music.player.pause();
 
-    notifyListeners();
+      notifyListeners();
+    } catch (e) {
+      print('❌ stopAudioMexing ERROR: $e');
+    }
   }
 
   Future<void> resumAudioMexing(context) async {
-    MusicViewModel music =
-    Provider.of<MusicViewModel>(context, listen: false);
+    try {
+      final MusicViewModel music =
+      Provider.of<MusicViewModel>(
+        context,
+        listen: false,
+      );
 
-    playmusic = true;
+      playmusic = true;
 
-    await _engine?.resumeAudioMixing();
+      await _engine?.resumeAudioMixing();
 
-    music.player.play();
+      music.player.play();
 
-    notifyListeners();
-  }
-
-  Future<void> muteusermic(uid) async {
-    Dialogs().showtoast('uid');
-
-    await _engine?.muteRemoteAudioStream(
-      uid: uid,
-      mute: true,
-    );
-
-    notifyListeners();
-  }
-
-  Future<void> xxxxx(uid) async {
-    Dialogs().showtoast('uid');
-
-    await _engine?.muteRemoteAudioStream(
-      uid: uid,
-      mute: true,
-    );
-
-    notifyListeners();
+      notifyListeners();
+    } catch (e) {
+      print('❌ resumAudioMexing ERROR: $e');
+    }
   }
 
   Future<void> pauseAudioMixing() async {
-    await _engine?.pauseAudioMixing();
+    try {
+      await _engine?.pauseAudioMixing();
 
-    notifyListeners();
+      notifyListeners();
+    } catch (e) {
+      print('❌ pauseAudioMixing ERROR: $e');
+    }
   }
 
   Future<void> resumeAudioMixing() async {
-    await _engine?.resumeAudioMixing();
+    try {
+      await _engine?.resumeAudioMixing();
 
-    notifyListeners();
-  }
-
-  Future<void> setAudioMixingPosition(int duration) async {
-    await _engine?.setAudioMixingPosition(
-      duration,
-    );
-
-    notifyListeners();
-  }
-
-  Future<void> mutebyuid({
-    required uid,
-    required context,
-  }) async {
-    RoomViewmodel Room =
-    Provider.of<RoomViewmodel>(context, listen: false);
-
-    if (Room.Mutedids.contains(uid)) {
-      Room.Mutedids.remove(uid);
-
-      await _engine?.muteRemoteAudioStream(
-        uid: uid,
-        mute: false,
-      );
-    } else {
-      Room.Mutedids.add(uid);
-
-      await _engine?.muteRemoteAudioStream(
-        uid: uid,
-        mute: true,
-      );
+      notifyListeners();
+    } catch (e) {
+      print('❌ resumeAudioMixing ERROR: $e');
     }
-
-    notifyListeners();
   }
 
-  Future<void> SetasBroadcaster() async {
-    muted = false;
+  Future<void> setAudioMixingPosition(
+      int duration,
+      ) async {
+    try {
+      await _engine?.setAudioMixingPosition(
+        duration,
+      );
 
-    notifyListeners();
-
-    await _engine?.setClientRole(
-      role: ClientRoleType.clientRoleBroadcaster,
-    );
-
-    await _engine?.adjustRecordingSignalVolume(
-      400,
-    );
+      notifyListeners();
+    } catch (e) {
+      print('❌ setAudioMixingPosition ERROR: $e');
+    }
   }
 
-  Future<void> SetasAudience() async {
-    muted = true;
-
-    notifyListeners();
-
-    await _engine?.setClientRole(
-      role: ClientRoleType.clientRoleAudience,
-    );
-  }
-
-  Future<void> Mute() async {
-    muted = true;
-
-    await _engine?.adjustRecordingSignalVolume(
-      0,
-    );
-
-    notifyListeners();
-  }
-
-  // Future<void> xxxxxxxx(uid) async {
-  //   await _engine?.adjustUserPlaybackVolume(
-  //     uid: uid,
-  //     volume: 0,
-  //   );
-  //
-  //   notifyListeners();
-  // }
-
-  Future<void> UnMute() async {
-    muted = false;
-
-    await SetasBroadcaster();
-
-    await _engine?.adjustRecordingSignalVolume(
-      400,
-    );
-
-    notifyListeners();
-  }
-
-  Future<void> keickedfromasAudience() async {
-    muted = true;
-
-    JoinChairs = false;
-    KickedFromChair = false;
-
-    await _engine?.setClientRole(
-      role: ClientRoleType.clientRoleAudience,
-    );
-
-    notifyListeners();
-  }
-
-  int userjoindid = 0;
-
-  List<Map> userjoin = [];
-
-  int speakeruid = 0;
-
-  List speakerids = [];
-
-  List UserIDS = [];
+  // ============================================================
+  // AUDIO EVENT HANDLERS
+  // ============================================================
 
   void _addAgoraEventHandlers() {
     _engine?.registerEventHandler(
       RtcEngineEventHandler(
-        onError: (ErrorCodeType err, String msg) {
-          print('onError: $err');
-          print('message: $msg');
+        // ------------------------------------------------------
+        // ERROR
+        // ------------------------------------------------------
+
+        onError: (
+            ErrorCodeType err,
+            String msg,
+            ) {
+          print('');
+          print('❌❌❌ AGORA ERROR ❌❌❌');
+          print('ERROR CODE: $err');
+          print('MESSAGE: $msg');
+          print('');
         },
+
+        // ------------------------------------------------------
+        // JOIN SUCCESS
+        // ------------------------------------------------------
 
         onJoinChannelSuccess: (
             RtcConnection connection,
             int elapsed,
             ) {
-          userjoindid = connection.localUid ?? 0;
+          userjoindid =
+              connection.localUid ?? 0;
 
-          print(
-            'Joined channel: ${connection.channelId}',
-          );
+          print('');
+          print('========================================');
+          print('✅ AGORA JOIN SUCCESS');
+          print('CHANNEL: ${connection.channelId}');
+          print('LOCAL UID: ${connection.localUid}');
+          print('ELAPSED: $elapsed');
+          print('========================================');
+          print('');
 
           notifyListeners();
         },
+
+        // ------------------------------------------------------
+        // LEAVE
+        // ------------------------------------------------------
 
         onLeaveChannel: (
             RtcConnection connection,
             RtcStats stats,
             ) {
-          print(
-            'onLeaveChannel ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::',
-          );
+          print('');
+          print('🚪 AGORA LEAVE CHANNEL');
+          print('CHANNEL: ${connection.channelId}');
+          print('');
+
+          usersuid.clear();
+          userjoin.clear();
+          speakerids.clear();
+
+          notifyListeners();
         },
+
+        // ------------------------------------------------------
+        // REMOTE USER JOINED
+        // ------------------------------------------------------
 
         onUserJoined: (
             RtcConnection connection,
             int uid,
             int elapsed,
             ) {
-          usersuid.add(uid);
+          print('');
+          print('========================================');
+          print('👤 REMOTE USER JOINED');
+          print('REMOTE UID: $uid');
+          print('CHANNEL: ${connection.channelId}');
+          print('========================================');
+          print('');
 
-          userjoin.add({
-            'userid': userjoindid,
-            'uid': uid,
-          });
+          if (!usersuid.contains(uid)) {
+            usersuid.add(uid);
+          }
+
+          final bool alreadyExists =
+          userjoin.any(
+                (element) =>
+            element['uid'] == uid,
+          );
+
+          if (!alreadyExists) {
+            userjoin.add({
+              'userid': userjoindid,
+              'uid': uid,
+            });
+          }
+
+          // Make sure remote audio is subscribed.
+          _engine?.muteRemoteAudioStream(
+            uid: uid,
+            mute: false,
+          );
 
           notifyListeners();
         },
+
+        // ------------------------------------------------------
+        // REMOTE USER LEFT
+        // ------------------------------------------------------
+
+        onUserOffline: (
+            RtcConnection connection,
+            int uid,
+            UserOfflineReasonType reason,
+            ) {
+          print('');
+          print('👤 REMOTE USER OFFLINE');
+          print('UID: $uid');
+          print('REASON: $reason');
+          print('');
+
+          usersuid.remove(uid);
+
+          userjoin.removeWhere(
+                (element) =>
+            element['uid'] == uid,
+          );
+
+          speakerids.removeWhere(
+                (element) =>
+            element['uid'] == uid,
+          );
+
+          notifyListeners();
+        },
+
+        // ------------------------------------------------------
+        // REMOTE AUDIO STATE
+        // ------------------------------------------------------
+
+        onRemoteAudioStateChanged: (
+            RtcConnection connection,
+            int remoteUid,
+            RemoteAudioState state,
+            RemoteAudioStateReason reason,
+            int elapsed,
+            ) {
+          print('');
+          print('🔊🔊🔊 REMOTE AUDIO STATE 🔊🔊🔊');
+          print('REMOTE UID: $remoteUid');
+          print('AUDIO STATE: $state');
+          print('AUDIO REASON: $reason');
+          print('ELAPSED: $elapsed');
+          print('CHANNEL: ${connection.channelId}');
+          print('');
+
+          notifyListeners();
+        },
+
+        // ------------------------------------------------------
+        // LOCAL AUDIO STATE
+        // ------------------------------------------------------
+
+        onLocalAudioStateChanged: (
+            RtcConnection connection,
+            LocalAudioStreamState state,
+            LocalAudioStreamReason reason,
+            ) {
+          print('');
+          print('🎤 LOCAL AUDIO STATE');
+          print('STATE: $state');
+          print('REASON: $reason');
+          print('');
+        },
+
+        // ------------------------------------------------------
+        // AUDIO VOLUME
+        // ------------------------------------------------------
 
         onAudioVolumeIndication: (
             RtcConnection connection,
@@ -474,8 +1071,11 @@ class AgoraViewmodel extends ChangeNotifier {
             int totalVolume,
             int totalRemoteVolume,
             ) {
-          for (var speaker in volumeInfo) {
-            if ((speaker.volume ?? 0) > 70) {
+          for (final speaker in volumeInfo) {
+            final int volume =
+                speaker.volume ?? 0;
+
+            if (volume > 70) {
               if (speaker.uid != 0) {
                 speakerids.add({
                   'uid': speaker.uid,
@@ -483,31 +1083,52 @@ class AgoraViewmodel extends ChangeNotifier {
                 });
               }
 
-              print('x');
-
-              for (var i in List.from(speakerids)) {
-                if (DateTime.now()
-                    .difference(i['time'])
-                    .inSeconds >
-                    2) {
-                  speakerids.remove(i);
-
-                  notifyListeners();
-
-                  break;
-                }
-              }
+              print(
+                '🔊 SPEAKING UID: '
+                    '${speaker.uid} '
+                    'VOLUME: $volume',
+              );
             }
           }
+
+          // Remove old speaking users.
+          for (final item
+          in List.from(speakerids)) {
+            final DateTime? time =
+            item['time'];
+
+            if (time != null &&
+                DateTime.now()
+                    .difference(time)
+                    .inSeconds >
+                    2) {
+              speakerids.remove(item);
+            }
+          }
+
+          notifyListeners();
         },
       ),
     );
+
+    print('✅ Agora event handlers registered');
   }
+
+  // ============================================================
+  // DISPOSE
+  // ============================================================
 
   @override
   void dispose() {
-    _engine?.leaveChannel();
-    _engine?.release();
+    try {
+      _engine?.leaveChannel();
+
+      _engine?.release();
+    } catch (e) {
+      print('❌ Agora dispose ERROR: $e');
+    }
+
+    _engine = null;
 
     super.dispose();
   }

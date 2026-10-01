@@ -1798,7 +1798,7 @@ Future<bool> EnterTrackRoomPassword({id, pass}) async {
    JoinChairs=true;
    Provider.of<RoomPlayViewModel>(context, listen: false).changeHasRoomstate(true);
 
-   Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,channelName: value.agoratoken.toString(),Token:value.Token! );
+   Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,channelName: value.RoomID.toString(),Token:value.agoratoken! );
    Provider.of<SocketViewmodel>(context,listen: false).ConnectRoomScocket(context,value.id);
    Provider.of<RoomPlayViewModel>(context, listen: false).changeIsRoomstate(true);
 
@@ -1844,13 +1844,13 @@ Future<bool> EnterTrackRoomPassword({id, pass}) async {
           Provider.of<RoomViewmodel>(roomcontext,listen: false).HideLuckyCombo();
           if(value.admin?.id.toString()==UserId.toString()){
             JoinChairs=true;
-            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,Token: value.Token!,channelName: value.agoratoken!);
+            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,Token: value.agoratoken!,channelName: value.RoomID.toString());
                      Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].mute=0;
         Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].adminleaved=0;
             Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].user=user.userinfo;
 
           }else{
-            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleAudience,Token: value.Token!,channelName: value.agoratoken!);
+            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleAudience,Token: value.agoratoken!,channelName: value.RoomID.toString());
           }
           Future.delayed(Duration(seconds: 2),() {
 
@@ -1916,13 +1916,13 @@ Future<bool> EnterTrackRoomPassword({id, pass}) async {
           JoinChairs=false;
           if(value.admin?.id.toString()==UserId.toString()){
             JoinChairs=true;
-            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,Token: value.Token!,channelName: value.agoratoken!);
+            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,Token: value.agoratoken!,channelName: value.RoomID.toString());
                      Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].mute=0;
         Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].adminleaved=0;
             Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].user=user.userinfo;
 
           }else{
-            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleAudience,Token: value.Token!,channelName: value.agoratoken!);
+            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleAudience,Token: value.agoratoken!,channelName: value.RoomID.toString());
           }
           Provider.of<GiftsViewModel>(context, listen: false).hidpanner();
           svga.animationController?.clear();
@@ -1989,13 +1989,13 @@ Future<bool> EnterTrackRoomPassword({id, pass}) async {
           Provider.of<RoomViewmodel>(roomcontext,listen: false).HideLuckyCombo();
           if(value.admin?.id.toString()==UserId.toString()){
             JoinChairs=true;
-            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,Token: value.Token!,channelName: value.agoratoken!);
+            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleBroadcaster,Token: value.agoratoken!,channelName: value.RoomID.toString());
                      Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].mute=0;
         Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].adminleaved=0;
             Provider.of<RoomViewmodel>(roomcontext,listen: false).Currentroom?.chairs?[8].user=user.userinfo;
 
           }else{
-            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleAudience,Token: value.Token!,channelName: value.agoratoken!);
+            Provider.of<AgoraViewmodel>(context,listen: false).initialize(role: ClientRoleType.clientRoleAudience,Token:value.agoratoken!,channelName: value.RoomID.toString());
           }
           Future.delayed(Duration(seconds: 2),() {
             print('Test ============================> 8');
