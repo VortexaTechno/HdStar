@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:873748841955:android:4d66b50ad0dfb86a04ccd6",
+        "mobilesdk_app_id": "1:873748841955:android:3e99c2b6d9917d7c04ccd6",
         "android_client_info": {
-          "package_name": "com.veyro.app"
+          "package_name": "com.veyro.app.com"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "873748841955-l09in6dqp49ld9f00mt3jnvadp7qjalj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCAh7PWcYnSisfOliunMi0_M4nec73t8Zc"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "873748841955-l09in6dqp49ld9f00mt3jnvadp7qjalj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
